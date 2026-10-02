@@ -62,6 +62,23 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 }
 @media(max-width:390px){.main{padding-left:9px;padding-right:9px}.mobileNav button,.mobileNavMore{min-width:52px;padding-left:3px;padding-right:3px}.posProducts{gap:6px!important}.posProduct{padding:9px!important}}
 
+
+/* POS responsive correction */
+.posLayout{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:14px;min-width:0}
+.posProductsPane{min-width:0}
+.posProducts{min-width:0}
+.posCart{min-width:0}
+@media(max-width:760px){
+ .posLayout{display:grid!important;grid-template-columns:minmax(0,1fr)!important;width:100%!important;min-width:0!important;gap:10px}
+ .posProductsPane{width:100%;min-width:0}
+ .posProducts{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;width:100%;min-width:0;gap:8px}
+ .posProducts>.card{min-width:0!important;width:100%!important}
+ .posCart{position:static!important;width:100%!important;min-width:0!important;overflow:hidden}
+ .posCart .list{min-width:0;width:100%}
+ .posCart .listItem{min-width:0;max-width:100%}
+ .posCart .listItem>div{min-width:0}
+}
+
 </style>
 </head>
 <body>
@@ -422,8 +439,8 @@ function pos(){
  const shown=ps.filter(p=>(posCat==='Semua'||p.category===posCat)&&(p.name+' '+(p.category||'')).toLowerCase().includes(posQuery.toLowerCase()));
  const subtotal=cartSubtotalV2(),tax=cartTaxV2(),discount=cartDiscountV2(),total=cartTotalV2();
  document.getElementById('content').innerHTML='<div class="bar"><div><h2>Kasir</h2><p class="muted">POS aktif · '+esc(currentBranch()?.name||'')+'</p></div><div class="actions"><span class="badge green">V5 POS</span><button class="ghost" onclick="cartV2=[];posDiscount=0;pos()">Kosongkan</button></div></div>'+
- '<div class="grid2" style="grid-template-columns:minmax(0,1fr) 410px"><div><input class="search" placeholder="🔍 Cari produk, layanan, kategori..." value="'+esc(posQuery)+'" oninput="posQuery=this.value;pos()"><div class="actions" style="margin:12px 0">'+cats.map(x=>'<button class="'+(x===posCat?'primary':'ghost')+'" onclick="posCat='+JSON.stringify(x)+';pos()">'+esc(x)+'</button>').join('')+'</div><div class="grid3">'+(shown.length?shown.map(p=>'<button class="card" style="text-align:left;color:inherit;border:1px solid var(--line);opacity:'+((p.type==='Produk'&&p.stock<=0)?0.55:1)+'" onclick="addToCartV2(\''+p.id+'\')" '+(p.type==='Produk'&&p.stock<=0?'disabled':'')+'><div class="sectionHead"><div><b>'+esc(p.name)+'</b><div class="muted small" style="margin-top:5px">'+esc(p.category||'Umum')+'</div></div><span class="badge">'+(p.type==='Layanan'?'Jasa':'Barang')+'</span></div><strong>'+money(p.price)+'</strong><div class="muted small" style="margin-top:7px">'+(p.type==='Layanan'?'Layanan':('Stok '+p.stock))+'</div></button>').join(''):'<div class="empty">Produk tidak ditemukan.</div>')+'</div></div>'+
- '<div class="card" style="position:sticky;top:20px;height:max-content"><div class="sectionHead"><div><h3>Keranjang</h3><p class="muted small">'+cartQtyV2()+' item</p></div></div><div class="list">'+(cartV2.length?cartV2.map((i,n)=>{const p=S.products.find(x=>x.id===i.productId);return '<div class="listItem"><div style="min-width:0;flex:1"><b>'+esc(p.name)+'</b><div class="muted small">'+money(p.price)+' × '+i.qty+' = '+money(p.price*i.qty)+'</div></div><div class="actions"><button class="ghost" onclick="changeCartV2('+n+',-1)">−</button><b style="min-width:20px;text-align:center">'+i.qty+'</b><button class="ghost" onclick="changeCartV2('+n+',1)">+</button><button class="ghost" onclick="removeCartV2('+n+')">×</button></div></div>'}).join(''):'<div class="empty">Klik produk untuk memasukkannya ke keranjang.</div>')+'</div>'+
+ '<div class="posLayout"><div class="posProductsPane"><input class="search" placeholder="🔍 Cari produk, layanan, kategori..." value="'+esc(posQuery)+'" oninput="posQuery=this.value;pos()"><div class="actions" style="margin:12px 0">'+cats.map(x=>'<button class="'+(x===posCat?'primary':'ghost')+'" onclick="posCat='+JSON.stringify(x)+';pos()">'+esc(x)+'</button>').join('')+'</div><div class="grid3">'+(shown.length?shown.map(p=>'<button class="card" style="text-align:left;color:inherit;border:1px solid var(--line);opacity:'+((p.type==='Produk'&&p.stock<=0)?0.55:1)+'" onclick="addToCartV2(\''+p.id+'\')" '+(p.type==='Produk'&&p.stock<=0?'disabled':'')+'><div class="sectionHead"><div><b>'+esc(p.name)+'</b><div class="muted small" style="margin-top:5px">'+esc(p.category||'Umum')+'</div></div><span class="badge">'+(p.type==='Layanan'?'Jasa':'Barang')+'</span></div><strong>'+money(p.price)+'</strong><div class="muted small" style="margin-top:7px">'+(p.type==='Layanan'?'Layanan':('Stok '+p.stock))+'</div></button>').join(''):'<div class="empty">Produk tidak ditemukan.</div>')+'</div></div>'+
+ '<div class="card posCart" style="position:sticky;top:20px;height:max-content"><div class="sectionHead"><div><h3>Keranjang</h3><p class="muted small">'+cartQtyV2()+' item</p></div></div><div class="list">'+(cartV2.length?cartV2.map((i,n)=>{const p=S.products.find(x=>x.id===i.productId);return '<div class="listItem"><div style="min-width:0;flex:1"><b>'+esc(p.name)+'</b><div class="muted small">'+money(p.price)+' × '+i.qty+' = '+money(p.price*i.qty)+'</div></div><div class="actions"><button class="ghost" onclick="changeCartV2('+n+',-1)">−</button><b style="min-width:20px;text-align:center">'+i.qty+'</b><button class="ghost" onclick="changeCartV2('+n+',1)">+</button><button class="ghost" onclick="removeCartV2('+n+')">×</button></div></div>'}).join(''):'<div class="empty">Klik produk untuk memasukkannya ke keranjang.</div>')+'</div>'+
  '<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px"><div class="listItem"><span>Subtotal</span><b>'+money(subtotal)+'</b></div><div class="listItem"><span>Diskon</span><b>−'+money(discount)+'</b></div><div class="listItem"><span>Pajak '+(c.tax||0)+'%</span><b>'+money(tax)+'</b></div><div class="listItem"><strong>Total</strong><strong style="font-size:22px">'+money(total)+'</strong></div></div>'+
  '<div class="notice" style="margin-top:12px">'+(posCustomerId?'<b>Pelanggan:</b> '+esc((S.customers.find(x=>x.id===posCustomerId)||{}).name||''):'<b>Pelanggan:</b> Umum')+'<br><span class="muted small">Pelanggan terhubung ke CRM saat transaksi diselesaikan.</span></div><button class="primary" style="width:100%;margin-top:12px;padding:14px;font-size:15px" onclick="checkoutForm()" '+(cartV2.length?'':'disabled')+'>Bayar · '+money(total)+'</button></div></div>';
 }
