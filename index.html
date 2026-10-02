@@ -22,10 +22,51 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.bar h2{margin:0}.actions{display:flex;gap:8px;flex-wrap:wrap}.search{width:min(360px,100%);padding:11px 13px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;outline:0}.search:focus,input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px #635bff18}.tableWrap{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:13px 11px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}.table th{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.table td{font-size:13px}.table tr:last-child td{border-bottom:0}.formGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:800;color:var(--muted)}input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);outline:0}textarea{resize:vertical}.modalBg{position:fixed;inset:0;z-index:50;background:#0b0d18aa;backdrop-filter:blur(5px);display:grid;place-items:center;padding:18px}.modal{width:min(720px,100%);max-height:92vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 25px 80px #0004}.modalHead{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:18px}.modalHead h3{margin:0;font-size:20px}.close{border:0;background:var(--surface2);color:var(--text);width:34px;height:34px;border-radius:9px}.modalFoot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}.hidden{display:none!important}.empty{padding:35px 15px;text-align:center;color:var(--muted)}.companyCard{position:relative;overflow:hidden}.companyCard .companyTop{display:flex;gap:13px;align-items:center}.companyLogo{width:50px;height:50px;border-radius:14px;background:var(--primarySoft);color:var(--primary);display:grid;place-items:center;font-size:18px;font-weight:900;overflow:hidden}.companyLogo img{width:100%;height:100%;object-fit:cover}.companyCard h3{margin:0}.companyCard p{margin:4px 0 0;color:var(--muted);font-size:12px}.companyMeta{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.companyFoot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:13px;border-top:1px solid var(--line)}.roleCard{padding:15px}.roleCard h3{margin:0}.perm{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.switchRow{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line)}.switchRow:last-child{border-bottom:0}.toggle{position:relative;width:43px;height:24px;background:#cfd2dc;border-radius:99px;border:0;padding:0}.toggle i{position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.18s}.toggle.on{background:var(--primary)}.toggle.on i{left:22px}.colorChoices{display:flex;gap:9px;flex-wrap:wrap}.colorDot{width:31px;height:31px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line)}.colorDot.selected{box-shadow:0 0 0 2px var(--text)}.logoUpload{border:1px dashed var(--line);border-radius:14px;padding:18px;text-align:center}.logoPreview{width:72px;height:72px;border-radius:18px;background:var(--primarySoft);margin:0 auto 9px;display:grid;place-items:center;overflow:hidden;font-weight:900;color:var(--primary)}.logoPreview img{width:100%;height:100%;object-fit:cover}.notice{padding:13px 14px;border-radius:12px;background:var(--primarySoft);color:var(--primary);font-size:12px;line-height:1.5}.mobileNav{display:none}.toast{position:fixed;right:20px;bottom:20px;z-index:80;background:#171a27;color:#fff;padding:12px 15px;border-radius:11px;box-shadow:0 12px 30px #0003;transform:translateY(12px);opacity:0;pointer-events:none;transition:.2s}.toast.show{transform:none;opacity:1}
 @media(max-width:1050px){.grid4{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){.sidebar{display:none}.main{margin:0;padding:17px 14px 84px}.topbar{align-items:flex-start}.pageTitle h1{font-size:22px}.pageTitle p{font-size:12px}.topActions .desktopOnly{display:none}.grid4,.grid3,.grid2,.formGrid{grid-template-columns:1fr}.mobileNav{display:flex;position:fixed;z-index:40;bottom:0;left:0;right:0;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:7px 5px;justify-content:space-around}.mobileNav button{border:0;background:transparent;color:var(--muted);font-size:10px;padding:7px 9px}.mobileNav button.active{color:var(--primary);font-weight:800}.bar{align-items:flex-start;flex-direction:column}.bar .actions{width:100%}.bar .search{width:100%}.table th,.table td{padding:11px 9px}.modal{padding:18px}.workspace{display:block}}
+
+/* NEXORA mobile responsive */
+.mobileMenuBtn{display:none}
+.mobileOverlay{display:none}
+@media(max-width:1050px){.grid4{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){
+ body{overflow-x:hidden}
+ .sidebar{display:flex;transform:translateX(-105%);transition:transform .22s ease;width:min(310px,86vw);box-shadow:20px 0 50px rgba(0,0,0,.28)}
+ .sidebar.mobileOpen{transform:translateX(0)}
+ .mobileOverlay{display:block;position:fixed;inset:0;background:#07091499;z-index:19;opacity:0;pointer-events:none;transition:.2s}
+ .mobileOverlay.show{opacity:1;pointer-events:auto}
+ .mobileMenuBtn{display:inline-grid}
+ .main{margin:0;padding:14px 12px 86px;min-width:0;width:100%;overflow:hidden}
+ .topbar{gap:8px;margin-bottom:18px}.pageTitle{min-width:0;flex:1}
+ .pageTitle h1{font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .pageTitle p{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .topActions{flex:0 0 auto}.topActions .iconBtn{width:38px;height:38px}.topActions .desktopOnly{display:none}
+ .grid4,.grid3,.grid2,.formGrid{grid-template-columns:1fr}
+ .card{padding:14px;border-radius:14px}.kpi{padding:14px}.kpi b{font-size:20px;margin-top:9px}
+ .bar{gap:10px;margin-bottom:12px}.bar h2{font-size:20px}.bar>div:first-child{width:100%;min-width:0}
+ .bar .actions{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}.bar .actions>*{flex:0 0 auto}
+ .actions{gap:6px}button,.ghost,.primary,.dangerBtn{min-height:40px}
+ .search{width:100%;font-size:14px}
+ .tableWrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.table{min-width:680px}
+ .table th,.table td{padding:10px 9px;font-size:12px}
+ .sectionHead{align-items:flex-start}.sectionHead>div{min-width:0}.sectionHead h3{font-size:15px}
+ .listItem{padding:10px;min-width:0}.listMain{min-width:0}
+ .modalBg{padding:8px;align-items:end}.modal{width:100%;max-width:none;max-height:94vh;border-radius:18px 18px 10px 10px;padding:16px}
+ .modalHead h3{font-size:18px}.modalFoot{position:sticky;bottom:0;background:var(--surface);padding-top:10px;flex-wrap:wrap}
+ .modalFoot button{flex:1;min-width:120px}input,select,textarea{font-size:14px;padding:12px}
+ .mobileNav{height:68px;padding:5px 4px calc(5px + env(safe-area-inset-bottom));justify-content:space-around}
+ .mobileNav button,.mobileNavMore{min-width:58px;min-height:52px;padding:5px 7px;border-radius:10px}
+ .mobileNav button div,.mobileNavMore div{font-size:18px;line-height:21px;margin-bottom:2px}
+ .mobileNav button.active{background:var(--primarySoft)}
+ .posProducts{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+ .posProduct{min-width:0!important;padding:11px!important}.posProduct strong{font-size:13px}
+ .toast{left:12px;right:12px;bottom:78px;text-align:center}
+}
+@media(max-width:390px){.main{padding-left:9px;padding-right:9px}.mobileNav button,.mobileNavMore{min-width:52px;padding-left:3px;padding-right:3px}.posProducts{gap:6px!important}.posProduct{padding:9px!important}}
+
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="mobileOverlay" class="mobileOverlay" onclick="closeMobileMenu()"></div>
 <div id="toast" class="toast"></div>
 <div id="modalBg" class="modalBg hidden"></div>
 
@@ -125,12 +166,14 @@ function initials(s){return String(s||'?').split(' ').map(x=>x[0]).join('').slic
 function modal(title,body,foot){document.getElementById('modalBg').innerHTML='<div class="modal"><div class="modalHead"><div><h3>'+title+'</h3></div><button class="close" onclick="closeModal()">×</button></div>'+body+(foot?'<div class="modalFoot">'+foot+'</div>':'')+'</div>';document.getElementById('modalBg').classList.remove('hidden')}
 function closeModal(){document.getElementById('modalBg').classList.add('hidden');document.getElementById('modalBg').innerHTML=''}
 let page='dashboard',search='';
-function go(p){if(!allowed(navItems.find(x=>x.id===p)?.label||p))return toast('Role ini tidak memiliki akses');page=p;render()}
+function go(p){if(!allowed(navItems.find(x=>x.id===p)?.label||p))return toast('Role ini tidak memiliki akses');page=p;closeMobileMenu();render()}
 function setCompany(cid){S.currentCompanyId=cid;const b=companyBranches(cid);if(!b.some(x=>x.id===S.currentBranchId))S.currentBranchId=b[0]?.id;save();render();toast('Perusahaan aktif diubah')}
 function setBranch(bid){S.currentBranchId=bid;save();render();toast('Cabang aktif diubah')}
 function switchUser(uid){S.currentUserId=uid;const u=currentUser();const valid=S.companies.filter(c=>u.companyIds.includes(c.id));if(!valid.some(c=>c.id===S.currentCompanyId))S.currentCompanyId=valid[0]?.id;const bs=companyBranches(S.currentCompanyId).filter(b=>u.branchIds.includes(b.id));if(!bs.some(b=>b.id===S.currentBranchId))S.currentBranchId=bs[0]?.id;save();render();toast('Mode pengguna: '+u.role)}
 function applyTheme(){document.body.classList.toggle('dark',!!S.theme.dark);document.documentElement.style.setProperty('--primary',S.theme.color||'#635bff');document.documentElement.style.setProperty('--primary2',lighten(S.theme.color||'#635bff'))}
 function lighten(hex){const h=hex.replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return '#'+[r,g,b].map(v=>Math.min(255,Math.round(v+45)).toString(16).padStart(2,'0')).join('')}
+function toggleMobileMenu(){const s=document.querySelector('.sidebar'),o=document.getElementById('mobileOverlay');s?.classList.toggle('mobileOpen');o?.classList.toggle('show')}
+function closeMobileMenu(){document.querySelector('.sidebar')?.classList.remove('mobileOpen');document.getElementById('mobileOverlay')?.classList.remove('show')}
 function shell(){
  const u=currentUser(),c=currentCompany(),b=currentBranch();
  const groups=[...new Set(navItems.map(x=>x.group))];
@@ -138,7 +181,7 @@ function shell(){
  '<div class="workspace"><div class="workspaceLabel">Workspace</div><button class="switchBtn" onclick="workspaceModal()"><div class="switchMain"><b>'+esc(c?.name||'Pilih perusahaan')+'</b><span>'+esc(b?.name||'Pilih cabang')+' · '+esc(u?.role||'')+'</span></div><span>⌄</span></button></div>'+
  '<nav class="nav">'+groups.map(g=>'<div class="navGroup">'+g+'</div>'+navItems.filter(x=>x.group===g&&allowed(x.label)).map(x=>'<button class="'+(page===x.id?'active':'')+'" onclick="go(\''+x.id+'\')"><span class="ico">'+x.icon+'</span>'+x.label+'</button>').join('')).join('')+'</nav>'+
  '<div class="sideBottom"><div class="profile"><div class="avatar">'+initials(u?.name)+'</div><div><b>'+esc(u?.name||'User')+'</b><span>'+esc(u?.role||'')+'</span></div></div></div></aside>'+
- '<main class="main"><div class="topbar"><div class="pageTitle"><h1>'+esc(navItems.find(x=>x.id===page)?.label||'Dashboard')+'</h1><p>'+esc(c?.name||'')+' · '+esc(b?.name||'')+'</p></div><div class="topActions"><button class="iconBtn" onclick="workspaceModal()" title="Ganti workspace">⌂</button><button class="iconBtn desktopOnly" onclick="go(\'settings\')" title="Pengaturan">⚙</button></div></div><div id="content"></div></main><nav class="mobileNav">'+navItems.filter(x=>allowed(x.label)).slice(0,5).map(x=>'<button class="'+(page===x.id?'active':'')+'" onclick="go(\''+x.id+'\')"><div>'+x.icon+'</div>'+x.label+'</button>').join('')+'</nav>';
+ '<main class="main"><div class="topbar"><div class="pageTitle"><h1>'+esc(navItems.find(x=>x.id===page)?.label||'Dashboard')+'</h1><p>'+esc(c?.name||'')+' · '+esc(b?.name||'')+'</p></div><div class="topActions"><button class="iconBtn mobileMenuBtn" onclick="toggleMobileMenu()" title="Menu">☰</button><button class="iconBtn" onclick="workspaceModal()" title="Ganti workspace">⌂</button><button class="iconBtn desktopOnly" onclick="go(\'settings\')" title="Pengaturan">⚙</button></div></div><div id="content"></div></main><nav class="mobileNav">'+['dashboard','pos','transactions','customers'].map(id=>navItems.find(x=>x.id===id)).filter(x=>x&&allowed(x.label)).map(x=>'<button class="'+(page===x.id?'active':'')+'" onclick="go(\''+x.id+'\')"><div>'+x.icon+'</div>'+x.label+'</button>').join('')+'<button class="mobileNavMore" onclick="toggleMobileMenu()"><div>☰</div>Menu</button></nav>';
  applyTheme();({dashboard,companies,branches,users,customers,suppliers,pos,transactions,purchases,products,inventory,recipes,production,finance,accounts,analytics,audit:auditPage,data,settings}[page]||dashboard)();
 }
 function workspaceModal(){
