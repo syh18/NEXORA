@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NEXORA V4 — Smart Business & POS</title>
+<title>NEXORA V6 — Smart Business & POS</title>
 <style>
 :root{
  --primary:#635bff;--primary2:#8179ff;--primarySoft:#eeedff;
@@ -80,6 +80,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -89,6 +90,18 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 
 <script>
 const KEY='nexora_v1';
+
+// =====================================================
+// NEXORA V6 — SUPABASE
+// Publishable key is safe for browser use when RLS is enabled.
+// Never put a Supabase secret/service_role key here.
+// =====================================================
+const SUPABASE_URL='https://bejgqjtvkqanzuihby.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_kF7d8TbNSpA98S5OdCEkvg_pAzD80Iw';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+ auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+});
+let cloudAuthReady=false;
 const roles={
  Owner:{desc:'Akses penuh ke seluruh bisnis',color:'green',perms:['Dashboard','Perusahaan','Cabang','Pengguna & Role','Pelanggan / CRM','Supplier','Kasir','Transaksi','Pembelian','Produk & Layanan','Inventori','Resep & HPP','Produksi','Keuangan','Akun Keuangan','Analitik','Audit Log','Backup & Data','Personalisasi']},
  Manajer:{desc:'Mengelola operasional dan performa',color:'orange',perms:['Dashboard','Perusahaan','Cabang','Pengguna & Role','Pelanggan / CRM','Supplier','Kasir','Transaksi','Pembelian','Produk & Layanan','Inventori','Resep & HPP','Produksi','Keuangan','Akun Keuangan','Analitik','Audit Log']},
@@ -193,21 +206,117 @@ function setCompany(cid){S.currentCompanyId=cid;const b=companyBranches(cid);if(
 function setBranch(bid){S.currentBranchId=bid;save();render();toast('Cabang aktif diubah')}
 function switchUser(uid){const u=S.users.find(x=>x.id===uid);if(!u||u.status===false)return toast('Akun tidak tersedia');S.currentUserId=u.id;const valid=S.companies.filter(c=>u.companyIds.includes(c.id));if(!valid.some(c=>c.id===S.currentCompanyId))S.currentCompanyId=valid[0]?.id;const bs=companyBranches(S.currentCompanyId).filter(b=>u.branchIds.includes(b.id));if(!bs.some(b=>b.id===S.currentBranchId))S.currentBranchId=bs[0]?.id;S.session={loggedIn:true,userId:u.id};save();render();toast('Masuk sebagai '+u.name+' · '+u.role)}
 function loginForm(){
- const active=(S.users||[]).filter(u=>u.status!==false);
- document.getElementById('modalBg').innerHTML='<div class="modal"><div class="modalHead"><div><h3>Masuk ke NEXORA</h3><p class="muted small">Pilih akun dan masukkan PIN.</p></div></div><div class="formGrid"><div class="field full"><label>Akun</label><select id="login_user">'+active.map(u=>'<option value="'+u.id+'">'+esc(u.name)+' · '+esc(u.role)+' · '+esc(u.email)+'</option>').join('')+'</select></div><div class="field full"><label>PIN</label><input id="login_pin" type="password" inputmode="numeric" maxlength="8" placeholder="Masukkan PIN" onkeydown="if(event.key===\'Enter\')loginSubmit()"></div></div><div class="notice" style="margin-top:14px">Demo lokal: PIN awal akun seed adalah <b>1234</b>. Ganti PIN melalui profil akun.</div><div class="modalFoot"><button class="primary" style="width:100%" onclick="loginSubmit()">Masuk</button></div></div>';
+ const savedEmail=localStorage.getItem('nexora_login_email')||'';
+ document.getElementById('modalBg').innerHTML='<div class="modal"><div class="modalHead"><div><h3>Masuk ke NEXORA</h3><p class="muted small">Gunakan akun NEXORA yang terhubung ke cloud.</p></div></div><div class="formGrid"><div class="field full"><label>Email</label><input id="login_email" type="email" autocomplete="email" value="'+esc(savedEmail)+'" placeholder="nama@email.com"></div><div class="field full"><label>Password</label><input id="login_password" type="password" autocomplete="current-password" placeholder="Masukkan password" onkeydown="if(event.key===\\'Enter\\')loginSubmit()"></div></div><div class="notice" style="margin-top:14px">Login sekarang menggunakan <b>Supabase Authentication</b>. PIN lokal lama tidak digunakan untuk login cloud.</div><div id="login_error" class="small" style="margin-top:10px;color:var(--danger)"></div><div class="modalFoot"><button class="primary" style="width:100%" onclick="loginSubmit()">Masuk</button></div></div>';
  document.getElementById('modalBg').classList.remove('hidden');
+ setTimeout(()=>document.getElementById('login_email')?.focus(),50);
 }
-function loginSubmit(){
- const u=S.users.find(x=>x.id===document.getElementById('login_user').value),pin=document.getElementById('login_pin').value;
- if(!u||u.status===false)return toast('Akun tidak aktif');
- if(pin!==String(u.pin||''))return toast('PIN salah');
- S.currentUserId=u.id;S.session={loggedIn:true,userId:u.id};
- const cs=S.companies.filter(x=>u.companyIds.includes(x.id));if(!cs.length)return toast('Akun belum terhubung ke perusahaan');
- if(!cs.some(x=>x.id===S.currentCompanyId))S.currentCompanyId=cs[0].id;
- const bs=companyBranches(S.currentCompanyId).filter(x=>u.branchIds.includes(x.id));if(bs.length&&!bs.some(x=>x.id===S.currentBranchId))S.currentBranchId=bs[0].id;
- logAudit('Login','Akun',u.email);save();closeModal();render();toast('Selamat datang, '+u.name);
+async function loadCloudUser(authUser){
+ const {data:profile,error:profileError}=await supabaseClient
+   .from('profiles').select('id,name,email,status').eq('id',authUser.id).maybeSingle();
+ if(profileError) throw profileError;
+ if(!profile) throw new Error('Profil NEXORA belum ditemukan untuk akun ini.');
+ if(profile.status==='inactive') throw new Error('Akun NEXORA sedang tidak aktif.');
+
+ const {data:memberships,error:memberError}=await supabaseClient
+   .from('company_users')
+   .select('company_id,role,status')
+   .eq('user_id',authUser.id)
+   .eq('status','active');
+ if(memberError) throw memberError;
+ if(!memberships?.length) throw new Error('Akun belum memiliki akses ke perusahaan NEXORA.');
+
+ const companyIds=memberships.map(m=>m.company_id);
+ const {data:companies,error:companyError}=await supabaseClient
+   .from('companies').select('*').in('id',companyIds);
+ if(companyError) throw companyError;
+
+ const {data:branches,error:branchError}=await supabaseClient
+   .from('branches').select('*').in('company_id',companyIds).eq('is_active',true);
+ if(branchError) throw branchError;
+
+ const roleMap={owner:'Owner',manajer:'Manajer',kasir:'Kasir',marketing:'Marketing',gudang:'Gudang'};
+ const primaryMembership=memberships[0];
+ const localCompanies=(companies||[]).map(c=>({
+   id:c.id,name:c.name,type:c.type==='barang_jasa'?'Barang + Jasa':c.type==='barang'?'Barang':'Jasa',
+   logo:c.logo_url||'',phone:c.phone||'',email:c.email||'',address:c.address||'',tax:Number(c.tax_percent||0)
+ }));
+ const localBranches=(branches||[]).map(b=>({
+   id:b.id,companyId:b.company_id,name:b.name,code:b.code,address:b.address||'',phone:b.phone||'',status:b.is_active!==false
+ }));
+ const localUser={
+   id:authUser.id,name:profile.name||authUser.email?.split('@')[0]||'User',
+   email:profile.email||authUser.email||'',pin:null,
+   role:roleMap[primaryMembership.role]||'Kasir',
+   companyIds,branchIds:localBranches.map(b=>b.id),status:true,
+   authUserId:authUser.id,cloud:true
+ };
+ S.users=S.users||[];
+ const existing=S.users.findIndex(u=>u.authUserId===authUser.id||u.id===authUser.id);
+ if(existing>=0)S.users[existing]={...S.users[existing],...localUser};
+ else S.users.push(localUser);
+ S.companies=(S.companies||[]).filter(c=>!companyIds.includes(c.id)).concat(localCompanies);
+ S.branches=(S.branches||[]).filter(b=>!companyIds.includes(b.companyId)).concat(localBranches);
+ S.currentUserId=authUser.id;
+ if(!companyIds.includes(S.currentCompanyId))S.currentCompanyId=companyIds[0];
+ const validBranches=localBranches.filter(b=>b.companyId===S.currentCompanyId);
+ if(!validBranches.some(b=>b.id===S.currentBranchId))S.currentBranchId=validBranches[0]?.id||null;
+ S.session={loggedIn:true,userId:authUser.id,cloud:true};
+ cloudAuthReady=true;
+ save();
 }
-function logout(){logAudit('Logout','Akun',currentUser()?.email||'');S.session={loggedIn:false,userId:null};save();location.reload()}
+
+async function loginSubmit(){
+ const email=document.getElementById('login_email')?.value.trim();
+ const password=document.getElementById('login_password')?.value||'';
+ const errorEl=document.getElementById('login_error');
+ if(!email||!password){
+   if(errorEl)errorEl.textContent='Email dan password wajib diisi.';
+   return;
+ }
+ if(errorEl)errorEl.textContent='Memproses login...';
+ const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+ if(error){
+   if(errorEl)errorEl.textContent=error.message||'Login gagal.';
+   return;
+ }
+ try{
+   await loadCloudUser(data.user);
+   localStorage.setItem('nexora_login_email',email);
+   closeModal();render();toast('Selamat datang di NEXORA');
+ }catch(e){
+   await supabaseClient.auth.signOut();
+   if(errorEl)errorEl.textContent=e.message||'Akun belum siap digunakan.';
+ }
+}
+
+async function bootstrapAuth(){
+ applyTheme();
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ if(session?.user){
+   try{
+     await loadCloudUser(session.user);
+     render();
+     return;
+   }catch(e){
+     await supabaseClient.auth.signOut();
+     S.session={loggedIn:false,userId:null};
+     save();
+     toast(e.message||'Sesi NEXORA tidak dapat dimuat.');
+   }
+ }
+ S.session={loggedIn:false,userId:null};
+ save();
+ render();
+}
+
+async function logout(){
+ logAudit('Logout','Akun',currentUser()?.email||'');
+ await supabaseClient.auth.signOut();
+ S.session={loggedIn:false,userId:null};
+ save();
+ location.reload();
+}
 function accountSwitcher(){
  const u=currentUser();
  modal('Akun NEXORA','<div class="list"><div class="listItem"><div class="listMain"><div class="avatar">'+initials(u?.name)+'</div><div><b>'+esc(u?.name||'')+'</b><span>'+esc(u?.email||'')+' · '+esc(u?.role||'')+'</span></div></div><span class="badge green">Aktif</span></div></div><div class="actions" style="margin-top:14px"><button class="ghost" onclick="closeModal();loginForm()">Ganti Akun</button><button class="dangerBtn" onclick="closeModal();logout()">Logout</button></div>');
@@ -641,7 +750,7 @@ function restoreBackup(){
  const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result);if(!p.data||!p.version)return toast('File backup tidak valid');Object.keys(p.data).forEach(k=>{S[k]=p.data[k]});if(!S.income)S.income=[];if(!S.expenses)S.expenses=[];if(!S.customers)S.customers=[];if(!S.suppliers)S.suppliers=[];if(!S.purchases)S.purchases=[];if(!S.accounts)S.accounts=[];if(!S.auditLogs)S.auditLogs=[];logAudit('Restore backup','Data','Data dipulihkan dari file '+file.name);save();location.reload()}catch(e){toast('Backup gagal dibaca')}};r.readAsText(file);
 }
 function render(){if(!S.session?.loggedIn){document.getElementById('app').innerHTML='';applyTheme();loginForm();return}const u=currentUser();if(!u||u.status===false){S.session={loggedIn:false,userId:null};save();return render()}shell()}
-render();
+bootstrapAuth();
 </script>
 </body>
 </html>
