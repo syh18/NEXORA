@@ -127,9 +127,9 @@ function seed(){
  return {
   companies:[c1,c2],branches:[b1,b2,b3],
   users:[
-   {id:id(),name:'Syarief',email:'owner@nexora.id',role:'Owner',companyIds:[c1.id,c2.id],branchIds:[b1.id,b2.id,b3.id],status:true},
-   {id:id(),name:'Andi',email:'manager@kopisenja.id',role:'Manajer',companyIds:[c1.id],branchIds:[b1.id,b2.id],status:true},
-   {id:id(),name:'Rina',email:'kasir@kopisenja.id',role:'Kasir',companyIds:[c1.id],branchIds:[b1.id],status:true}
+   {id:id(),name:'Syarief',email:'owner@nexora.id',pin:'1234',role:'Owner',companyIds:[c1.id,c2.id],branchIds:[b1.id,b2.id,b3.id],status:true},
+   {id:id(),name:'Andi',email:'manager@kopisenja.id',pin:'1234',role:'Manajer',companyIds:[c1.id],branchIds:[b1.id,b2.id],status:true},
+   {id:id(),name:'Rina',email:'kasir@kopisenja.id',pin:'1234',role:'Kasir',companyIds:[c1.id],branchIds:[b1.id],status:true}
   ],
   products:[
    {id:id(),companyId:c1.id,name:'Kopi Susu Gula Aren',type:'Produk',category:'Coffee',price:22000,cost:7900,stock:40},
@@ -153,8 +153,11 @@ function seed(){
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){S=seed()}
 if(!S.currentUserId)S.currentUserId=S.users[0]?.id;
+if(S.session?.loggedIn&&S.session.userId)S.currentUserId=S.session.userId;
 
 function ensureV2(){
+ S.users=(S.users||[]).map(u=>({...u,pin:u.pin||'1234',status:u.status!==false,companyIds:u.companyIds||[],branchIds:u.branchIds||[]}));
+ S.session=S.session||{loggedIn:false,userId:null};
  S.recipes=S.recipes||[];
  S.movements=S.movements||[];
  S.production=S.production||[];
@@ -175,7 +178,9 @@ function currentUser(){return S.users.find(x=>x.id===S.currentUserId)||S.users[0
 function currentCompany(){return S.companies.find(x=>x.id===S.currentCompanyId)||S.companies[0]}
 function currentBranch(){return S.branches.find(x=>x.id===S.currentBranchId)||S.branches.find(x=>x.companyId===currentCompany()?.id)}
 function companyBranches(cid){return S.branches.filter(x=>x.companyId===cid)}
-function allowed(item){const u=currentUser();if(!u)return false;if(u.role==='Owner')return true;return roles[u.role]?.perms.includes(item)}
+function allowed(item){const u=currentUser();if(!u||u.status===false)return false;if(u.role==='Owner')return true;return !!roles[u.role]?.perms.includes(item)}
+function can(action){const u=currentUser();if(!u||u.status===false)return false;if(u.role==='Owner')return true;const map={manageUsers:'Pengguna & Role',manageCompanies:'Perusahaan',manageFinance:'Keuangan',manageProducts:'Produk & Layanan',manageInventory:'Inventori',managePurchases:'Pembelian',sell:'Kasir'};return !!roles[u.role]?.perms.includes(map[action])}
+function requirePermission(action){if(!can(action)){toast('Akun '+(currentUser()?.role||'ini')+' tidak memiliki akses');return false}return true}
 function money(n){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n||0)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');clearTimeout(window.tt);window.tt=setTimeout(()=>e.classList.remove('show'),2200)}
@@ -183,10 +188,30 @@ function initials(s){return String(s||'?').split(' ').map(x=>x[0]).join('').slic
 function modal(title,body,foot){document.getElementById('modalBg').innerHTML='<div class="modal"><div class="modalHead"><div><h3>'+title+'</h3></div><button class="close" onclick="closeModal()">×</button></div>'+body+(foot?'<div class="modalFoot">'+foot+'</div>':'')+'</div>';document.getElementById('modalBg').classList.remove('hidden')}
 function closeModal(){document.getElementById('modalBg').classList.add('hidden');document.getElementById('modalBg').innerHTML=''}
 let page='dashboard',search='';
-function go(p){if(!allowed(navItems.find(x=>x.id===p)?.label||p))return toast('Role ini tidak memiliki akses');page=p;closeMobileMenu();render()}
+function go(p){if(!S.session?.loggedIn)return loginForm();if(!allowed(navItems.find(x=>x.id===p)?.label||p))return toast('Role '+currentUser()?.role+' tidak memiliki akses ke '+(navItems.find(x=>x.id===p)?.label||p));page=p;closeMobileMenu();render()}
 function setCompany(cid){S.currentCompanyId=cid;const b=companyBranches(cid);if(!b.some(x=>x.id===S.currentBranchId))S.currentBranchId=b[0]?.id;save();render();toast('Perusahaan aktif diubah')}
 function setBranch(bid){S.currentBranchId=bid;save();render();toast('Cabang aktif diubah')}
-function switchUser(uid){S.currentUserId=uid;const u=currentUser();const valid=S.companies.filter(c=>u.companyIds.includes(c.id));if(!valid.some(c=>c.id===S.currentCompanyId))S.currentCompanyId=valid[0]?.id;const bs=companyBranches(S.currentCompanyId).filter(b=>u.branchIds.includes(b.id));if(!bs.some(b=>b.id===S.currentBranchId))S.currentBranchId=bs[0]?.id;save();render();toast('Mode pengguna: '+u.role)}
+function switchUser(uid){const u=S.users.find(x=>x.id===uid);if(!u||u.status===false)return toast('Akun tidak tersedia');S.currentUserId=u.id;const valid=S.companies.filter(c=>u.companyIds.includes(c.id));if(!valid.some(c=>c.id===S.currentCompanyId))S.currentCompanyId=valid[0]?.id;const bs=companyBranches(S.currentCompanyId).filter(b=>u.branchIds.includes(b.id));if(!bs.some(b=>b.id===S.currentBranchId))S.currentBranchId=bs[0]?.id;S.session={loggedIn:true,userId:u.id};save();render();toast('Masuk sebagai '+u.name+' · '+u.role)}
+function loginForm(){
+ const active=(S.users||[]).filter(u=>u.status!==false);
+ document.getElementById('modalBg').innerHTML='<div class="modal"><div class="modalHead"><div><h3>Masuk ke NEXORA</h3><p class="muted small">Pilih akun dan masukkan PIN.</p></div></div><div class="formGrid"><div class="field full"><label>Akun</label><select id="login_user">'+active.map(u=>'<option value="'+u.id+'">'+esc(u.name)+' · '+esc(u.role)+' · '+esc(u.email)+'</option>').join('')+'</select></div><div class="field full"><label>PIN</label><input id="login_pin" type="password" inputmode="numeric" maxlength="8" placeholder="Masukkan PIN" onkeydown="if(event.key===\'Enter\')loginSubmit()"></div></div><div class="notice" style="margin-top:14px">Demo lokal: PIN awal akun seed adalah <b>1234</b>. Ganti PIN melalui profil akun.</div><div class="modalFoot"><button class="primary" style="width:100%" onclick="loginSubmit()">Masuk</button></div></div>';
+ document.getElementById('modalBg').classList.remove('hidden');
+}
+function loginSubmit(){
+ const u=S.users.find(x=>x.id===document.getElementById('login_user').value),pin=document.getElementById('login_pin').value;
+ if(!u||u.status===false)return toast('Akun tidak aktif');
+ if(pin!==String(u.pin||''))return toast('PIN salah');
+ S.currentUserId=u.id;S.session={loggedIn:true,userId:u.id};
+ const cs=S.companies.filter(x=>u.companyIds.includes(x.id));if(!cs.length)return toast('Akun belum terhubung ke perusahaan');
+ if(!cs.some(x=>x.id===S.currentCompanyId))S.currentCompanyId=cs[0].id;
+ const bs=companyBranches(S.currentCompanyId).filter(x=>u.branchIds.includes(x.id));if(bs.length&&!bs.some(x=>x.id===S.currentBranchId))S.currentBranchId=bs[0].id;
+ logAudit('Login','Akun',u.email);save();closeModal();render();toast('Selamat datang, '+u.name);
+}
+function logout(){logAudit('Logout','Akun',currentUser()?.email||'');S.session={loggedIn:false,userId:null};save();location.reload()}
+function accountSwitcher(){
+ const u=currentUser();
+ modal('Akun NEXORA','<div class="list"><div class="listItem"><div class="listMain"><div class="avatar">'+initials(u?.name)+'</div><div><b>'+esc(u?.name||'')+'</b><span>'+esc(u?.email||'')+' · '+esc(u?.role||'')+'</span></div></div><span class="badge green">Aktif</span></div></div><div class="actions" style="margin-top:14px"><button class="ghost" onclick="closeModal();loginForm()">Ganti Akun</button><button class="dangerBtn" onclick="closeModal();logout()">Logout</button></div>');
+}
 function applyTheme(){document.body.classList.toggle('dark',!!S.theme.dark);document.documentElement.style.setProperty('--primary',S.theme.color||'#635bff');document.documentElement.style.setProperty('--primary2',lighten(S.theme.color||'#635bff'))}
 function lighten(hex){const h=hex.replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return '#'+[r,g,b].map(v=>Math.min(255,Math.round(v+45)).toString(16).padStart(2,'0')).join('')}
 function toggleMobileMenu(){const s=document.querySelector('.sidebar'),o=document.getElementById('mobileOverlay');s?.classList.toggle('mobileOpen');o?.classList.toggle('show')}
@@ -197,7 +222,7 @@ function shell(){
  document.getElementById('app').innerHTML='<aside class="sidebar"><div class="brand"><div class="brandLogo">'+(c?.logo?'<img src="'+c.logo+'">':'N')+'</div><div><b>NEXORA</b><small>Smart Business</small></div></div>'+
  '<div class="workspace"><div class="workspaceLabel">Workspace</div><button class="switchBtn" onclick="workspaceModal()"><div class="switchMain"><b>'+esc(c?.name||'Pilih perusahaan')+'</b><span>'+esc(b?.name||'Pilih cabang')+' · '+esc(u?.role||'')+'</span></div><span>⌄</span></button></div>'+
  '<nav class="nav">'+groups.map(g=>'<div class="navGroup">'+g+'</div>'+navItems.filter(x=>x.group===g&&allowed(x.label)).map(x=>'<button class="'+(page===x.id?'active':'')+'" onclick="go(\''+x.id+'\')"><span class="ico">'+x.icon+'</span>'+x.label+'</button>').join('')).join('')+'</nav>'+
- '<div class="sideBottom"><div class="profile"><div class="avatar">'+initials(u?.name)+'</div><div><b>'+esc(u?.name||'User')+'</b><span>'+esc(u?.role||'')+'</span></div></div></div></aside>'+
+ '<div class="sideBottom"><button class="profile" onclick="accountSwitcher()" style="width:100%;text-align:left;color:inherit"><div class="avatar">'+initials(u?.name)+'</div><div><b>'+esc(u?.name||'User')+'</b><span>'+esc(u?.role||'')+'</span></div><span style="margin-left:auto">⌄</span></button></div></aside>'+
  '<main class="main"><div class="topbar"><div class="pageTitle"><h1>'+esc(navItems.find(x=>x.id===page)?.label||'Dashboard')+'</h1><p>'+esc(c?.name||'')+' · '+esc(b?.name||'')+'</p></div><div class="topActions"><button class="iconBtn mobileMenuBtn" onclick="toggleMobileMenu()" title="Menu">☰</button><button class="iconBtn" onclick="workspaceModal()" title="Ganti workspace">⌂</button><button class="iconBtn desktopOnly" onclick="go(\'settings\')" title="Pengaturan">⚙</button></div></div><div id="content"></div></main><nav class="mobileNav">'+['dashboard','pos','transactions','customers'].map(id=>navItems.find(x=>x.id===id)).filter(x=>x&&allowed(x.label)).map(x=>'<button class="'+(page===x.id?'active':'')+'" onclick="go(\''+x.id+'\')"><div>'+x.icon+'</div>'+x.label+'</button>').join('')+'<button class="mobileNavMore" onclick="toggleMobileMenu()"><div>☰</div>Menu</button></nav>';
  applyTheme();({dashboard,companies,branches,users,customers,suppliers,pos,transactions,purchases,products,inventory,recipes,production,finance,accounts,analytics,audit:auditPage,data,settings}[page]||dashboard)();
 }
@@ -219,6 +244,7 @@ function companies(){
  document.getElementById('content').innerHTML='<div class="bar"><div><h2>Perusahaan</h2><p class="muted">Kelola beberapa bisnis dari satu akun NEXORA.</p></div><button class="primary" onclick="companyForm()">+ Tambah Perusahaan</button></div><div class="grid3">'+cs.map(c=>'<div class="card companyCard"><div class="companyTop"><div class="companyLogo">'+(c.logo?'<img src="'+c.logo+'">':initials(c.name))+'</div><div><h3>'+esc(c.name)+'</h3><p>'+esc(c.type)+'</p></div></div><div class="companyMeta"><span class="badge">'+companyBranches(c.id).length+' Cabang</span><span class="badge">'+S.users.filter(u=>u.companyIds.includes(c.id)).length+' User</span></div><div class="companyFoot"><span class="small muted">'+esc(c.address||'Alamat belum diisi')+'</span><button class="ghost" onclick="editCompany(\''+c.id+'\')">Kelola</button></div></div>').join('')+'</div>';
 }
 function companyForm(editId){
+ if(!can('manageCompanies')&&!editId)return toast('Hanya Owner/Manajer yang dapat menambah perusahaan');
  const c=editId?S.companies.find(x=>x.id===editId):{name:'',type:'Barang + Jasa',phone:'',email:'',address:'',tax:11,logo:''};
  modal(editId?'Edit Perusahaan':'Tambah Perusahaan','<div class="formGrid"><div class="field full"><label>Nama perusahaan</label><input id="cf_name" value="'+esc(c.name)+'" placeholder="Contoh: Kopi Senja"></div><div class="field"><label>Jenis bisnis</label><select id="cf_type"><option>Barang</option><option>Jasa</option><option>Barang + Jasa</option></select></div><div class="field"><label>Pajak (%)</label><input id="cf_tax" type="number" value="'+(c.tax??0)+'"></div><div class="field"><label>Nomor telepon</label><input id="cf_phone" value="'+esc(c.phone)+'"></div><div class="field"><label>Email</label><input id="cf_email" value="'+esc(c.email)+'"></div><div class="field full"><label>Alamat</label><textarea id="cf_address" rows="2">'+esc(c.address)+'</textarea></div><div class="field full"><label>Logo perusahaan</label><div class="logoUpload"><div class="logoPreview" id="cf_preview">'+(c.logo?'<img src="'+c.logo+'">':initials(c.name||'N'))+'</div><input id="cf_logo" type="file" accept="image/*" onchange="previewLogo(this)"><div class="small muted" style="margin-top:7px">PNG/JPG/WebP, maksimal 2 MB</div></div></div></div>',
  '<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveCompany(\''+(editId||'')+'\')">Simpan</button>');
@@ -238,6 +264,7 @@ function branches(){
  document.getElementById('content').innerHTML='<div class="bar"><div><h2>Cabang</h2><p class="muted">Kelola lokasi operasional '+esc(c?.name||'')+'.</p></div><button class="primary" onclick="branchForm()">+ Tambah Cabang</button></div><div class="grid3">'+bs.map(b=>'<div class="card"><div class="sectionHead"><div class="listMain"><div class="miniIcon">⌖</div><div><h3>'+esc(b.name)+'</h3><span class="muted small">'+esc(b.code)+'</span></div></div>'+(b.id===S.currentBranchId?'<span class="badge green">Aktif</span>':'')+'</div><p class="muted small">'+esc(b.address||'Alamat belum diisi')+'</p><div class="companyFoot"><span class="small">'+S.users.filter(u=>u.branchIds.includes(b.id)).length+' pengguna</span><div class="actions"><button class="ghost" onclick="setBranch(\''+b.id+'\')">Pilih</button><button class="ghost" onclick="branchForm(\''+b.id+'\')">Edit</button></div></div></div>').join('')+'</div>';
 }
 function branchForm(editId){
+ if(!can('manageCompanies')&&!editId)return toast('Akun ini tidak dapat menambah cabang');
  const b=editId?S.branches.find(x=>x.id===editId):{name:'',code:'',address:'',phone:'',status:true},c=currentCompany();
  modal(editId?'Edit Cabang':'Tambah Cabang','<div class="formGrid"><div class="field"><label>Nama cabang</label><input id="bf_name" value="'+esc(b.name)+'" placeholder="Contoh: Surabaya"></div><div class="field"><label>Kode cabang</label><input id="bf_code" value="'+esc(b.code)+'" placeholder="SBY"></div><div class="field full"><label>Alamat</label><textarea id="bf_address" rows="2">'+esc(b.address)+'</textarea></div><div class="field"><label>Telepon</label><input id="bf_phone" value="'+esc(b.phone)+'"></div><div class="field"><label>Status</label><select id="bf_status"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div></div><div class="notice" style="margin-top:14px">Cabang ini akan berada di bawah perusahaan <b>'+esc(c?.name||'')+'</b>.</div>',
  '<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveBranch(\''+(editId||'')+'\')">Simpan</button>');
@@ -260,6 +287,7 @@ function userForm(editId){
  document.getElementById('uf_role').value=u.role;document.getElementById('uf_status').value=String(u.status!==false);
 }
 function saveUser(editId){
+ if(!requirePermission('manageUsers'))return;
  const name=document.getElementById('uf_name').value.trim(),email=document.getElementById('uf_email').value.trim();if(!name||!email)return toast('Nama dan email wajib diisi');
  const bids=[...document.querySelectorAll('.uf_branch:checked')].map(x=>x.value);if(!bids.length)return toast('Pilih minimal satu cabang');
  const o={id:editId||id(),name,email,role:document.getElementById('uf_role').value,status:document.getElementById('uf_status').value==='true',companyIds:[currentCompany().id],branchIds:bids};
@@ -275,6 +303,7 @@ function products(){
  const c=currentCompany(),ps=S.products.filter(p=>p.companyId===c.id);document.getElementById('content').innerHTML='<div class="bar"><div><h2>Produk & Layanan</h2><p class="muted">Master data yang digunakan oleh operasional.</p></div><button class="primary" onclick="productForm()">+ Tambah</button></div><div class="card tableWrap"><table class="table"><thead><tr><th>Nama</th><th>Jenis</th><th>Kategori</th><th>Harga</th><th>HPP</th><th>Stok</th><th>Aksi</th></tr></thead><tbody>'+ps.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td><span class="badge">'+p.type+'</span></td><td>'+esc(p.category)+'</td><td>'+money(p.price)+'</td><td>'+money(p.cost)+'</td><td>'+(p.type==='Layanan'?'—':p.stock)+'</td><td><button class="ghost" onclick="productForm(\''+p.id+'\')">Edit</button></td></tr>').join('')+'</tbody></table></div>';
 }
 function productForm(editId){
+ if(!can('manageProducts')&&!editId)return toast('Akun ini tidak dapat menambah produk');
  const p=editId?S.products.find(x=>x.id===editId):{name:'',type:'Produk',category:'',price:0,cost:0,stock:0};modal(editId?'Edit Produk/Layanan':'Tambah Produk/Layanan','<div class="formGrid"><div class="field full"><label>Nama</label><input id="pf_name" value="'+esc(p.name)+'"></div><div class="field"><label>Jenis</label><select id="pf_type"><option>Produk</option><option>Layanan</option></select></div><div class="field"><label>Kategori</label><input id="pf_cat" value="'+esc(p.category)+'"></div><div class="field"><label>Harga jual</label><input id="pf_price" type="number" value="'+p.price+'"></div><div class="field"><label>HPP</label><input id="pf_cost" type="number" value="'+p.cost+'"></div><div class="field"><label>Stok</label><input id="pf_stock" type="number" value="'+p.stock+'"></div></div><div class="notice" style="margin-top:14px">Modul <b>Resep & Produksi</b> akan dikembangkan pada V2. V1 menyimpan HPP dasar per item.</div>','<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveProduct(\''+(editId||'')+'\')">Simpan</button>');document.getElementById('pf_type').value=p.type;
 }
 function saveProduct(editId){
