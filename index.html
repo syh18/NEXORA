@@ -366,7 +366,7 @@ function completeCheckout(){
  save();cartV2=[];posCustomerId='';posDiscount=0;posNote='';paymentV2='Tunai';closeModal();render();toast('Pembayaran berhasil · '+no);setTimeout(()=>receiptV2(tx.id),80);
 }
 function pos(){
- const ps=v2Products(),cats=['Semua',...new Set(ps.map(p=>p.category||'Umum'))];
+ const c=currentCompany(),ps=v2Products(),cats=['Semua',...new Set(ps.map(p=>p.category||'Umum'))];
  const shown=ps.filter(p=>(posCat==='Semua'||p.category===posCat)&&(p.name+' '+(p.category||'')).toLowerCase().includes(posQuery.toLowerCase()));
  const subtotal=cartSubtotalV2(),tax=cartTaxV2(),discount=cartDiscountV2(),total=cartTotalV2();
  document.getElementById('content').innerHTML='<div class="bar"><div><h2>Kasir</h2><p class="muted">POS aktif · '+esc(currentBranch()?.name||'')+'</p></div><div class="actions"><span class="badge green">V5 POS</span><button class="ghost" onclick="cartV2=[];posDiscount=0;pos()">Kosongkan</button></div></div>'+
