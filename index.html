@@ -251,13 +251,40 @@ function saveExpenseV3(){
  save();closeModal();render();toast('Pengeluaran dicatat');
 }
 function finance(){
- const f=scopedFinance(),periods=[['today','Hari ini'],['7d','7 Hari'],['30d','30 Hari'],['90d','90 Hari'],['all','12 Bulan']];
- document.getElementById('content').innerHTML='<div class="bar"><div><h2>Keuangan</h2><p class="muted">Ringkasan finansial perusahaan aktif.</p></div><div class="actions">'+periods.map(p=>'<button class="'+(financePeriod===p[0]?'primary':'ghost')+'" onclick="financePeriod='+JSON.stringify(p[0])+';finance()">'+p[1]+'</button></div></div>'+
- '<div class="grid4"><div class="card kpi"><div class="kpiTop">Revenue</div><b>'+money(f.rev)+'</b><small>Pendapatan periode</small></div><div class="card kpi"><div class="kpiTop">HPP / COGS</div><b>'+money(f.cogs)+'</b><small>Biaya produk terjual</small></div><div class="card kpi"><div class="kpiTop">Gross Profit</div><b>'+money(f.gross)+'</b><small>Revenue − HPP</small></div><div class="card kpi"><div class="kpiTop">Net Profit</div><b>'+money(f.net)+'</b><small>Setelah pengeluaran</small></div></div>'+
- '<div class="grid2" style="margin-top:15px"><div class="card"><div class="sectionHead"><div><h3>Profit & Loss</h3><p class="muted small">Periode '+periods.find(x=>x[0]===financePeriod)[1]+'</p></div></div><div class="list"><div class="listItem"><span>Revenue</span><b>'+money(f.rev)+'</b></div><div class="listItem"><span>HPP / COGS</span><b>−'+money(f.cogs)+'</b></div><div class="listItem"><span>Gross Profit</span><b>'+money(f.gross)+'</b></div><div class="listItem"><span>Operating Expense</span><b>−'+money(f.expense)+'</b></div><div class="listItem"><strong>Net Profit</strong><strong>'+money(f.net)+'</strong></div><div class="listItem"><span>Net Margin</span><b>'+(f.rev?Math.round(f.net/f.rev*100):0)+'%</b></div></div></div>'+
- '<div class="card"><div class="sectionHead"><div><h3>Cash Flow</h3><p class="muted small">Arus kas sederhana</p></div><button class="ghost" onclick="cashflowModal()">Detail</button></div><div class="list"><div class="listItem"><span>Cash In</span><b style="color:var(--success)">+'+money(f.rev)+'</b></div><div class="listItem"><span>Cash Out</span><b style="color:var(--danger)">−'+money(f.expense+f.cogs)+'</b></div><div class="listItem"><span>Net Cash Flow</span><b>'+money(f.rev-f.expense-f.cogs)+'</b></div></div></div></div>'+
- '<div class="card" style="margin-top:15px"><div class="sectionHead"><div><h3>Transaksi Keuangan Terbaru</h3><p class="muted small">Pendapatan dan pengeluaran yang tercatat.</p></div><div class="actions"><button class="ghost" onclick="addIncomeForm()">+ Pendapatan</button><button class="primary" onclick="addExpenseForm()">+ Pengeluaran</button></div></div><div class="tableWrap"><table class="table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Keterangan</th><th>Nominal</th></tr></thead><tbody>'+
- f.inc.concat(f.exp).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,15).map(x=>'<tr><td>'+new Date(x.date).toLocaleDateString('id-ID')+'</td><td><span class="badge '+(x.amount?'green':'')+'">'+(f.inc.includes(x)?'IN':'OUT')+'</span></td><td>'+esc(x.category||x.name||'')+'</td><td>'+esc(x.note||'')+'</td><td><b>'+money(x.amount)+'</b></td></tr>').join('')+'</tbody></table></div></div>';
+ const f=scopedFinance();
+ const periods=[['today','Hari ini'],['7d','7 Hari'],['30d','30 Hari'],['90d','90 Hari'],['all','12 Bulan']];
+ const periodLabel=(periods.find(x=>x[0]===financePeriod)||periods[2])[1];
+ const periodButtons=periods.map(p=>{
+   const cls=financePeriod===p[0]?'primary':'ghost';
+   return '<button class="'+cls+'" onclick="financePeriod=\''+p[0]+'\';finance()">'+p[1]+'</button>';
+ }).join('');
+ const rows=f.inc.concat(f.exp).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,15).map(x=>{
+   const kind=f.inc.includes(x)?'IN':'OUT';
+   return '<tr><td>'+new Date(x.date).toLocaleDateString('id-ID')+'</td><td><span class="badge '+(kind==='IN'?'green':'red')+'">'+kind+'</span></td><td>'+esc(x.category||x.name||'')+'</td><td>'+esc(x.note||'')+'</td><td><b>'+money(x.amount)+'</b></td></tr>';
+ }).join('');
+ document.getElementById('content').innerHTML=
+ '<div class="bar"><div><h2>Keuangan</h2><p class="muted">Ringkasan finansial perusahaan aktif.</p></div><div class="actions">'+periodButtons+'</div></div>'+
+ '<div class="grid4">'+
+ '<div class="card kpi"><div class="kpiTop">Revenue</div><b>'+money(f.rev)+'</b><small>Pendapatan periode</small></div>'+
+ '<div class="card kpi"><div class="kpiTop">HPP / COGS</div><b>'+money(f.cogs)+'</b><small>Biaya produk terjual</small></div>'+
+ '<div class="card kpi"><div class="kpiTop">Gross Profit</div><b>'+money(f.gross)+'</b><small>Revenue − HPP</small></div>'+
+ '<div class="card kpi"><div class="kpiTop">Net Profit</div><b>'+money(f.net)+'</b><small>Setelah pengeluaran</small></div></div>'+
+ '<div class="grid2" style="margin-top:15px">'+
+ '<div class="card"><div class="sectionHead"><div><h3>Profit & Loss</h3><p class="muted small">Periode '+periodLabel+'</p></div></div><div class="list">'+
+ '<div class="listItem"><span>Revenue</span><b>'+money(f.rev)+'</b></div>'+
+ '<div class="listItem"><span>HPP / COGS</span><b>−'+money(f.cogs)+'</b></div>'+
+ '<div class="listItem"><span>Gross Profit</span><b>'+money(f.gross)+'</b></div>'+
+ '<div class="listItem"><span>Operating Expense</span><b>−'+money(f.expense)+'</b></div>'+
+ '<div class="listItem"><strong>Net Profit</strong><strong>'+money(f.net)+'</strong></div>'+
+ '<div class="listItem"><span>Net Margin</span><b>'+(f.rev?Math.round(f.net/f.rev*100):0)+'%</b></div>'+
+ '</div></div>'+
+ '<div class="card"><div class="sectionHead"><div><h3>Cash Flow</h3><p class="muted small">Arus kas sederhana</p></div><button class="ghost" onclick="cashflowModal()">Detail</button></div><div class="list">'+
+ '<div class="listItem"><span>Cash In</span><b style="color:var(--success)">+'+money(f.rev)+'</b></div>'+
+ '<div class="listItem"><span>Cash Out</span><b style="color:var(--danger)">−'+money(f.expense+f.cogs)+'</b></div>'+
+ '<div class="listItem"><span>Net Cash Flow</span><b>'+money(f.rev-f.expense-f.cogs)+'</b></div>'+
+ '</div></div></div>'+
+ '<div class="card" style="margin-top:15px"><div class="sectionHead"><div><h3>Transaksi Keuangan Terbaru</h3><p class="muted small">Pendapatan dan pengeluaran yang tercatat.</p></div><div class="actions"><button class="ghost" onclick="addIncomeForm()">+ Pendapatan</button><button class="primary" onclick="addExpenseForm()">+ Pengeluaran</button></div></div>'+
+ '<div class="tableWrap"><table class="table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Keterangan</th><th>Nominal</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 function cashflowModal(){
  const f=scopedFinance();modal('Detail Cash Flow','<div class="list"><div class="listItem"><span>Kas masuk dari penjualan</span><b>'+money(f.tx.reduce((a,x)=>a+(x.total||0),0))+'</b></div><div class="listItem"><span>Pendapatan lain</span><b>'+money(f.inc.reduce((a,x)=>a+x.amount,0))+'</b></div><div class="listItem"><span>HPP penjualan</span><b>−'+money(f.cogs)+'</b></div><div class="listItem"><span>Pengeluaran operasional</span><b>−'+money(f.expense)+'</b></div><div class="listItem"><strong>Net Cash Flow</strong><strong>'+money(f.rev-f.cogs-f.expense)+'</strong></div></div>','<button class="primary" onclick="closeModal()">Tutup</button>');
