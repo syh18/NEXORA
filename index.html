@@ -101,7 +101,7 @@ function ensureV2(){
  S.movements=S.movements||[];
  S.production=S.production||[];
  S.receipt=S.receipt||{paper:'80mm',showLogo:true,showTax:true,footer:'Terima kasih sudah berkunjung!'};
- S.accounts=S.accounts||[];S.expenses=S.expenses||[];S.income=S.income||[];S.cashflows=S.cashflows||[];S.customers=S.customers||[];S.suppliers=S.suppliers||[];S.purchases=S.purchases||[];S.auditLogs=S.auditLogs||[];
+ S.accounts=S.accounts||[];S.expenses=S.expenses||[];S.income=S.income||[];S.cashflows=S.cashflows||[];S.customers=S.customers||[];S.suppliers=S.suppliers||[];S.purchases=S.purchases||[];S.auditLogs=S.auditLogs||[];S.syncQueue=S.syncQueue||[];S.deviceId=S.deviceId||('NEX-'+id());S.appVersion='V5';
  S.transactions=(S.transactions||[]).map(t=>({...t,payment:t.payment||'Tunai',status:t.status||'Selesai',items:t.items||[]}));
  if(!S.recipes.length){
   const coffee=S.products.find(p=>p.name==='Kopi Susu Gula Aren');
@@ -310,54 +310,70 @@ function analytics(){
  '<div class="card" style="margin-top:15px"><div class="sectionHead"><div><h3>Financial Breakdown</h3><p class="muted small">Komponen pembentuk profit</p></div></div><div class="grid3"><div class="listItem"><span>Revenue</span><b>'+money(f.rev)+'</b></div><div class="listItem"><span>COGS</span><b>−'+money(f.cogs)+'</b></div><div class="listItem"><span>Operating Expense</span><b>−'+money(f.expense)+'</b></div></div></div>';
 }
 /* ==================== NEXORA V2 OPERATIONAL MODULES ==================== */
-let cartV2=[], posCat='Semua', posQuery='', paymentV2='Tunai';
-
-function v2Products(){
- const c=currentCompany(); return S.products.filter(p=>p.companyId===c.id);
-}
+let cartV2=[], posCat='Semua', posQuery='', paymentV2='Tunai', posCustomerId='', posDiscount=0, posNote='';
+function v2Products(){const c=currentCompany();return S.products.filter(p=>p.companyId===c.id)}
 function v2Recipe(pid){return S.recipes.find(r=>r.companyId===currentCompany().id&&r.productId===pid)}
-function recipeCost(pid){
- const r=v2Recipe(pid); if(!r)return S.products.find(p=>p.id===pid)?.cost||0;
- return r.items.reduce((sum,i)=>sum+(S.products.find(p=>p.id===i.productId)?.cost||0)*i.qty,0);
-}
-function v2SyncHPP(pid){
- const p=S.products.find(x=>x.id===pid); if(!p)return;
- const c=recipeCost(pid); if(c>0)p.cost=Math.round(c);
-}
+function recipeCost(pid){const r=v2Recipe(pid);if(!r)return S.products.find(p=>p.id===pid)?.cost||0;return r.items.reduce((sum,i)=>sum+(S.products.find(p=>p.id===i.productId)?.cost||0)*i.qty,0)}
+function v2SyncHPP(pid){const p=S.products.find(x=>x.id===pid);if(!p)return;const c=recipeCost(pid);if(c>0)p.cost=Math.round(c)}
 function addToCartV2(pid){
- const p=S.products.find(x=>x.id===pid); if(!p)return;
+ const p=S.products.find(x=>x.id===pid);if(!p)return;
  const found=cartV2.find(x=>x.productId===pid);
- if(p.type==='Produk' && p.stock<=0)return toast('Stok produk habis');
- if(found){if(p.type==='Produk'&&found.qty>=p.stock)return toast('Stok tidak cukup');found.qty++}
- else cartV2.push({productId:pid,qty:1});
- render();
+ if(p.type==='Produk'&&p.stock<=0)return toast('Stok produk habis');
+ if(found){if(p.type==='Produk'&&found.qty>=p.stock)return toast('Stok tidak cukup');found.qty++}else cartV2.push({productId:pid,qty:1});
+ pos();
 }
-function cartTotalV2(){return cartV2.reduce((s,i)=>{const p=S.products.find(x=>x.id===i.productId);return s+(p?.price||0)*i.qty},0)}
+function cartSubtotalV2(){return cartV2.reduce((s,i)=>{const p=S.products.find(x=>x.id===i.productId);return s+(p?.price||0)*i.qty},0)}
+function cartTaxV2(){return Math.round(cartSubtotalV2()*(currentCompany().tax||0)/100)}
+function cartDiscountV2(){return Math.max(0,Math.min(Number(posDiscount)||0,cartSubtotalV2()))}
+function cartTotalV2(){return Math.max(0,cartSubtotalV2()+cartTaxV2()-cartDiscountV2())}
 function cartQtyV2(){return cartV2.reduce((s,i)=>s+i.qty,0)}
-function removeCartV2(i){cartV2.splice(i,1);render()}
-function changeCartV2(i,d){
- const x=cartV2[i],p=S.products.find(z=>z.id===x.productId);if(!x)return;
- x.qty+=d;
- if(p?.type==='Produk'&&x.qty>p.stock)x.qty=p.stock;
- if(x.qty<=0)cartV2.splice(i,1);
- render();
-}
-function checkoutV2(){
+function removeCartV2(i){cartV2.splice(i,1);pos()}
+function changeCartV2(i,d){const x=cartV2[i],p=S.products.find(z=>z.id===x.productId);if(!x)return;x.qty+=d;if(p?.type==='Produk'&&x.qty>p.stock)x.qty=p.stock;if(x.qty<=0)cartV2.splice(i,1);pos()}
+function checkoutForm(){
  if(!cartV2.length)return toast('Keranjang masih kosong');
- const total=cartTotalV2(),c=currentCompany(),b=currentBranch();
- const pay=paymentV2;
- const tx={id:id(),companyId:c.id,branchId:b.id,total,date:new Date().toISOString(),payment:pay,status:'Selesai',items:cartV2.map(i=>{const p=S.products.find(x=>x.id===i.productId);return {productId:p.id,name:p.name,qty:i.qty,price:p.price,cost:p.cost}})};
- tx.no='INV-'+String(S.transactions.filter(x=>x.companyId===c.id).length+1).padStart(6,'0');
- tx.subtotal=total;tx.tax=Math.round(total*(c.tax||0)/100);tx.grandTotal=total+tx.tax;
- tx.total=tx.grandTotal;
- tx.items.forEach(i=>{const p=S.products.find(x=>x.id===i.productId);if(p.type==='Produk'){p.stock=Math.max(0,p.stock-i.qty);S.movements.unshift({id:id(),companyId:c.id,branchId:b.id,productId:p.id,type:'OUT',qty:i.qty,note:'Penjualan '+tx.no,date:tx.date})}});
- S.transactions.unshift(tx);save();
- cartV2=[];render();receiptV2(tx.id);
+ const c=currentCompany(),customers=(S.customers||[]).filter(x=>x.companyId===c.id&&x.status!==false);
+ const total=cartTotalV2();
+ modal('Pembayaran','<div class="notice" style="margin-bottom:14px"><span>Total yang harus dibayar</span><strong style="display:block;font-size:28px;margin-top:5px">'+money(total)+'</strong></div>'+
+ '<div class="formGrid"><div class="field"><label>Pelanggan</label><select id="pay_customer"><option value="">Pelanggan umum</option>'+customers.map(x=>'<option value="'+x.id+'">'+esc(x.name)+(x.phone?' · '+esc(x.phone):'')+'</option>').join('')+'</select></div>'+
+ '<div class="field"><label>Metode pembayaran</label><select id="pay_method" onchange="paymentV2=this.value;toggleCashInput()"><option>Tunai</option><option>QRIS</option><option>Transfer</option><option>Debit</option></select></div>'+
+ '<div class="field full"><label>Diskon (Rp)</label><input id="pay_discount" type="number" min="0" value="'+(posDiscount||0)+'" oninput="posDiscount=+this.value||0;refreshCheckoutTotal()"></div>'+
+ '<div id="cashField" class="field full"><label>Uang diterima</label><input id="pay_cash" type="number" min="'+total+'" value="'+total+'" oninput="refreshCheckoutTotal()"></div>'+
+ '<div class="field full"><label>Catatan transaksi</label><input id="pay_note" value="'+esc(posNote)+'" placeholder="Contoh: meja 12 / pesanan online"></div></div>'+
+ '<div id="checkoutSummary" class="notice" style="margin-top:14px"></div>',
+ '<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="completeCheckout()">✓ Selesaikan Pembayaran</button>');
+ document.getElementById('pay_customer').value=posCustomerId||'';
+ document.getElementById('pay_method').value=paymentV2;
+ refreshCheckoutTotal();
+}
+function toggleCashInput(){const el=document.getElementById('cashField');if(el)el.style.display=paymentV2==='Tunai'?'block':'none';refreshCheckoutTotal()}
+function refreshCheckoutTotal(){
+ const el=document.getElementById('checkoutSummary');if(!el)return;
+ const total=cartTotalV2(),cash=+(document.getElementById('pay_cash')?.value||0),change=Math.max(0,cash-total);
+ el.innerHTML='<div class="listItem"><span>Subtotal</span><b>'+money(cartSubtotalV2())+'</b></div><div class="listItem"><span>Diskon</span><b>−'+money(cartDiscountV2())+'</b></div><div class="listItem"><span>Pajak</span><b>'+money(cartTaxV2())+'</b></div><div class="listItem"><strong>Total</strong><strong>'+money(total)+'</strong></div>'+(paymentV2==='Tunai'?'<div class="listItem"><span>Uang diterima</span><b>'+money(cash)+'</b></div><div class="listItem"><strong>Kembalian</strong><strong style="color:var(--success)">'+money(change)+'</strong></div>':'');
+}
+function completeCheckout(){
+ if(!cartV2.length)return toast('Keranjang kosong');
+ const c=currentCompany(),b=currentBranch(),subtotal=cartSubtotalV2(),discount=cartDiscountV2(),tax=cartTaxV2(),total=cartTotalV2(),pay=document.getElementById('pay_method').value,cash=+(document.getElementById('pay_cash')?.value||0);
+ if(pay==='Tunai'&&cash<total)return toast('Uang diterima kurang dari total');
+ const items=cartV2.map(i=>{const p=S.products.find(x=>x.id===i.productId);return {productId:p.id,name:p.name,qty:i.qty,price:p.price,cost:p.cost||0}});
+ const no='INV-'+String(S.transactions.filter(x=>x.companyId===c.id).length+1).padStart(6,'0');
+ const tx={id:id(),no,companyId:c.id,branchId:b.id,customerId:document.getElementById('pay_customer').value||null,total,subtotal,tax,discount,grandTotal:total,date:new Date().toISOString(),payment:pay,status:'Selesai',cashReceived:pay==='Tunai'?cash:total,change:pay==='Tunai'?cash-total:0,note:document.getElementById('pay_note').value.trim(),items};
+ items.forEach(i=>{const p=S.products.find(x=>x.id===i.productId);if(p?.type==='Produk'){p.stock=Math.max(0,p.stock-i.qty);S.movements.unshift({id:id(),companyId:c.id,branchId:b.id,productId:p.id,type:'OUT',qty:i.qty,note:'Penjualan '+no,date:tx.date})}});
+ S.transactions.unshift(tx);
+ S.cashflows=S.cashflows||[];S.cashflows.unshift({id:id(),companyId:c.id,branchId:b.id,type:'IN',amount:total,source:'Penjualan',reference:no,date:tx.date});
+ logAudit('Menyelesaikan transaksi','Kasir',no+' · '+money(total));
+ S.syncQueue=S.syncQueue||[];S.syncQueue.push({id:id(),type:'transaction.created',recordId:tx.id,date:tx.date,status:'pending'});
+ save();cartV2=[];posCustomerId='';posDiscount=0;posNote='';paymentV2='Tunai';closeModal();render();toast('Pembayaran berhasil · '+no);setTimeout(()=>receiptV2(tx.id),80);
 }
 function pos(){
  const ps=v2Products(),cats=['Semua',...new Set(ps.map(p=>p.category||'Umum'))];
- const shown=ps.filter(p=>(posCat==='Semua'||p.category===posCat)&&(p.name+' '+p.category).toLowerCase().includes(posQuery.toLowerCase()));
- document.getElementById('content').innerHTML='<div class="grid2" style="grid-template-columns:minmax(0,1fr) 390px"><div><div class="bar"><div><h2>Kasir</h2><p class="muted">Transaksi cepat untuk '+esc(currentBranch()?.name||'')+'</p></div><span class="badge green">Operasional V2</span></div><input class="search" placeholder="🔍 Cari produk, layanan, kategori..." value="'+esc(posQuery)+'" oninput="posQuery=this.value;pos()"><div class="actions" style="margin:12px 0">'+cats.map(x=>'<button class="'+(x===posCat?'primary':'ghost')+'" onclick="posCat='+JSON.stringify(x)+';pos()">'+esc(x)+'</button>').join('')+'</div><div class="grid3">'+shown.map(p=>'<button class="card" style="text-align:left;color:inherit;border:1px solid var(--line);opacity:'+((p.type==='Produk'&&p.stock<=0)?0.55:1)+'" onclick="addToCartV2(\''+p.id+'\')" '+(p.type==='Produk'&&p.stock<=0?'disabled':'')+'><div class="sectionHead"><div><b>'+esc(p.name)+'</b><div class="muted small" style="margin-top:5px">'+esc(p.category)+'</div></div><span class="badge">'+(p.type==='Layanan'?'Jasa':'Barang')+'</span></div><strong>'+money(p.price)+'</strong><div class="muted small" style="margin-top:7px">'+(p.type==='Layanan'?'Layanan':('Stok '+p.stock))+'</div></button>').join('')||'<div class="empty">Produk tidak ditemukan.</div>'+'</div></div><div class="card" style="position:sticky;top:20px;height:max-content"><div class="sectionHead"><div><h3>Pesanan</h3><p class="muted small">'+cartQtyV2()+' item</p></div><button class="ghost" onclick="cartV2=[];render()">Kosongkan</button></div><div class="list">'+(cartV2.length?cartV2.map((i,n)=>{const p=S.products.find(x=>x.id===i.productId);return '<div class="listItem"><div style="min-width:0"><b>'+esc(p.name)+'</b><div class="muted small">'+money(p.price)+' × '+i.qty+'</div></div><div class="actions"><button class="ghost" onclick="changeCartV2('+n+',-1)">−</button><button class="ghost" onclick="changeCartV2('+n+',1)">+</button></div></div>'}).join(''):'<div class="empty">Keranjang masih kosong.</div>')+'</div><div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px"><div class="listItem"><span>Subtotal</span><b>'+money(cartTotalV2())+'</b></div><div class="listItem"><span>Pajak '+(currentCompany().tax||0)+'%</span><b>'+money(Math.round(cartTotalV2()*(currentCompany().tax||0)/100))+'</b></div><div class="listItem"><strong>Total</strong><strong style="font-size:20px">'+money(cartTotalV2()+Math.round(cartTotalV2()*(currentCompany().tax||0)/100))+'</strong></div></div><label style="display:block;margin-top:12px;font-size:11px;font-weight:800;color:var(--muted)">Metode pembayaran<select style="margin-top:6px" onchange="paymentV2=this.value"><option>Tunai</option><option>QRIS</option><option>Transfer</option><option>Debit</option></select></label><button class="primary" style="width:100%;margin-top:12px;padding:13px" onclick="checkoutV2()">Bayar & Cetak Struk</button></div></div>';
+ const shown=ps.filter(p=>(posCat==='Semua'||p.category===posCat)&&(p.name+' '+(p.category||'')).toLowerCase().includes(posQuery.toLowerCase()));
+ const subtotal=cartSubtotalV2(),tax=cartTaxV2(),discount=cartDiscountV2(),total=cartTotalV2();
+ document.getElementById('content').innerHTML='<div class="bar"><div><h2>Kasir</h2><p class="muted">POS aktif · '+esc(currentBranch()?.name||'')+'</p></div><div class="actions"><span class="badge green">V5 POS</span><button class="ghost" onclick="cartV2=[];posDiscount=0;pos()">Kosongkan</button></div></div>'+
+ '<div class="grid2" style="grid-template-columns:minmax(0,1fr) 410px"><div><input class="search" placeholder="🔍 Cari produk, layanan, kategori..." value="'+esc(posQuery)+'" oninput="posQuery=this.value;pos()"><div class="actions" style="margin:12px 0">'+cats.map(x=>'<button class="'+(x===posCat?'primary':'ghost')+'" onclick="posCat='+JSON.stringify(x)+';pos()">'+esc(x)+'</button>').join('')+'</div><div class="grid3">'+(shown.length?shown.map(p=>'<button class="card" style="text-align:left;color:inherit;border:1px solid var(--line);opacity:'+((p.type==='Produk'&&p.stock<=0)?0.55:1)+'" onclick="addToCartV2(\''+p.id+'\')" '+(p.type==='Produk'&&p.stock<=0?'disabled':'')+'><div class="sectionHead"><div><b>'+esc(p.name)+'</b><div class="muted small" style="margin-top:5px">'+esc(p.category||'Umum')+'</div></div><span class="badge">'+(p.type==='Layanan'?'Jasa':'Barang')+'</span></div><strong>'+money(p.price)+'</strong><div class="muted small" style="margin-top:7px">'+(p.type==='Layanan'?'Layanan':('Stok '+p.stock))+'</div></button>').join(''):'<div class="empty">Produk tidak ditemukan.</div>')+'</div></div>'+
+ '<div class="card" style="position:sticky;top:20px;height:max-content"><div class="sectionHead"><div><h3>Keranjang</h3><p class="muted small">'+cartQtyV2()+' item</p></div></div><div class="list">'+(cartV2.length?cartV2.map((i,n)=>{const p=S.products.find(x=>x.id===i.productId);return '<div class="listItem"><div style="min-width:0;flex:1"><b>'+esc(p.name)+'</b><div class="muted small">'+money(p.price)+' × '+i.qty+' = '+money(p.price*i.qty)+'</div></div><div class="actions"><button class="ghost" onclick="changeCartV2('+n+',-1)">−</button><b style="min-width:20px;text-align:center">'+i.qty+'</b><button class="ghost" onclick="changeCartV2('+n+',1)">+</button><button class="ghost" onclick="removeCartV2('+n+')">×</button></div></div>'}).join(''):'<div class="empty">Klik produk untuk memasukkannya ke keranjang.</div>')+'</div>'+
+ '<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px"><div class="listItem"><span>Subtotal</span><b>'+money(subtotal)+'</b></div><div class="listItem"><span>Diskon</span><b>−'+money(discount)+'</b></div><div class="listItem"><span>Pajak '+(c.tax||0)+'%</span><b>'+money(tax)+'</b></div><div class="listItem"><strong>Total</strong><strong style="font-size:22px">'+money(total)+'</strong></div></div>'+
+ '<div class="notice" style="margin-top:12px">Pembayaran dan data pelanggan diatur saat checkout.</div><button class="primary" style="width:100%;margin-top:12px;padding:14px;font-size:15px" onclick="checkoutForm()" '+(cartV2.length?'':'disabled')+'>Bayar · '+money(total)+'</button></div></div>';
 }
 function transactions(){
  const c=currentCompany(),rows=S.transactions.filter(x=>x.companyId===c.id);
