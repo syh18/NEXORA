@@ -43,14 +43,20 @@ const navItems=[
  {id:'companies',icon:'▦',label:'Perusahaan',group:'Bisnis'},
  {id:'branches',icon:'⌖',label:'Cabang',group:'Bisnis'},
  {id:'users',icon:'♙',label:'Pengguna & Role',group:'Bisnis'},
+ {id:'customers',icon:'♧',label:'Pelanggan / CRM',group:'Bisnis'},
+ {id:'suppliers',icon:'♢',label:'Supplier',group:'Bisnis'},
  {id:'pos',icon:'▣',label:'Kasir',group:'Penjualan'},
  {id:'transactions',icon:'▤',label:'Transaksi',group:'Penjualan'},
+ {id:'purchases',icon:'🛒',label:'Pembelian',group:'Penjualan'},
  {id:'products',icon:'◈',label:'Produk & Layanan',group:'Operasional'},
  {id:'inventory',icon:'◫',label:'Inventori',group:'Operasional'},
  {id:'recipes',icon:'◇',label:'Resep & HPP',group:'Operasional'},
  {id:'production',icon:'⚙',label:'Produksi',group:'Operasional'},
  {id:'finance',icon:'◩',label:'Keuangan',group:'Analitik'},
+ {id:'accounts',icon:'◎',label:'Akun Keuangan',group:'Analitik'},
  {id:'analytics',icon:'◔',label:'Analitik',group:'Analitik'},
+ {id:'audit',icon:'◷',label:'Audit Log',group:'Sistem'},
+ {id:'data',icon:'⇅',label:'Backup & Data',group:'Sistem'},
  {id:'settings',icon:'⚙',label:'Personalisasi',group:'Sistem'}
 ];
 function id(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
@@ -95,7 +101,7 @@ function ensureV2(){
  S.movements=S.movements||[];
  S.production=S.production||[];
  S.receipt=S.receipt||{paper:'80mm',showLogo:true,showTax:true,footer:'Terima kasih sudah berkunjung!'};
- S.accounts=S.accounts||[];S.expenses=S.expenses||[];S.income=S.income||[];S.cashflows=S.cashflows||[];S.customers=S.customers||[];
+ S.accounts=S.accounts||[];S.expenses=S.expenses||[];S.income=S.income||[];S.cashflows=S.cashflows||[];S.customers=S.customers||[];S.suppliers=S.suppliers||[];S.purchases=S.purchases||[];S.auditLogs=S.auditLogs||[];
  S.transactions=(S.transactions||[]).map(t=>({...t,payment:t.payment||'Tunai',status:t.status||'Selesai',items:t.items||[]}));
  if(!S.recipes.length){
   const coffee=S.products.find(p=>p.name==='Kopi Susu Gula Aren');
@@ -106,6 +112,7 @@ function ensureV2(){
 ensureV2();
 
 function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+function logAudit(action,module,detail){S.auditLogs=S.auditLogs||[];S.auditLogs.unshift({id:id(),userId:currentUser()?.id||null,companyId:currentCompany()?.id||null,branchId:currentBranch()?.id||null,action,module,detail,date:new Date().toISOString()});S.auditLogs=S.auditLogs.slice(0,500);}
 function currentUser(){return S.users.find(x=>x.id===S.currentUserId)||S.users[0]}
 function currentCompany(){return S.companies.find(x=>x.id===S.currentCompanyId)||S.companies[0]}
 function currentBranch(){return S.branches.find(x=>x.id===S.currentBranchId)||S.branches.find(x=>x.companyId===currentCompany()?.id)}
@@ -132,7 +139,7 @@ function shell(){
  '<nav class="nav">'+groups.map(g=>'<div class="navGroup">'+g+'</div>'+navItems.filter(x=>x.group===g&&allowed(x.label)).map(x=>'<button class="'+(page===x.id?'active':'')+'" onclick="go(\''+x.id+'\')"><span class="ico">'+x.icon+'</span>'+x.label+'</button>').join('')).join('')+'</nav>'+
  '<div class="sideBottom"><div class="profile"><div class="avatar">'+initials(u?.name)+'</div><div><b>'+esc(u?.name||'User')+'</b><span>'+esc(u?.role||'')+'</span></div></div></div></aside>'+
  '<main class="main"><div class="topbar"><div class="pageTitle"><h1>'+esc(navItems.find(x=>x.id===page)?.label||'Dashboard')+'</h1><p>'+esc(c?.name||'')+' · '+esc(b?.name||'')+'</p></div><div class="topActions"><button class="iconBtn" onclick="workspaceModal()" title="Ganti workspace">⌂</button><button class="iconBtn desktopOnly" onclick="go(\'settings\')" title="Pengaturan">⚙</button></div></div><div id="content"></div></main><nav class="mobileNav">'+navItems.filter(x=>allowed(x.label)).slice(0,5).map(x=>'<button class="'+(page===x.id?'active':'')+'" onclick="go(\''+x.id+'\')"><div>'+x.icon+'</div>'+x.label+'</button>').join('')+'</nav>';
- applyTheme();({dashboard,companies,branches,users,pos,transactions,products,inventory,recipes,production,finance,analytics,settings}[page]||dashboard)();
+ applyTheme();({dashboard,companies,branches,users,customers,suppliers,pos,transactions,purchases,products,inventory,recipes,production,finance,accounts,analytics,audit:auditPage,data,settings}[page]||dashboard)();
 }
 function workspaceModal(){
  const u=currentUser();const cs=S.companies.filter(c=>u.companyIds.includes(c.id));const c=currentCompany();const bs=companyBranches(c?.id).filter(b=>u.branchIds.includes(b.id));
@@ -429,6 +436,92 @@ function settings(){
  const t=S.theme;document.getElementById('content').innerHTML='<div class="grid2"><div class="card"><div class="sectionHead"><div><h3>Tampilan</h3><p class="muted small">Sesuaikan NEXORA dengan gaya kerja kamu.</p></div></div><div class="switchRow"><div><b>Dark mode</b><div class="muted small">Gunakan tampilan gelap.</div></div><button class="toggle '+(t.dark?'on':'')+'" onclick="toggleDark()"><i></i></button></div><div class="switchRow"><div><b>Mode compact</b><div class="muted small">Kurangi jarak antar komponen.</div></div><button class="toggle '+(t.compact?'on':'')+'" onclick="S.theme.compact=!S.theme.compact;save();render()"><i></i></button></div><div style="margin-top:18px"><b>Warna utama</b><div class="colorChoices" style="margin-top:10px">'+['#635bff','#0f9d78','#1677ff','#e34d8c','#f08a24','#111827'].map(c=>'<button class="colorDot '+(t.color===c?'selected':'')+'" style="background:'+c+'" onclick="setColor(\''+c+'\')"></button>').join('')+'</div></div></div><div class="card"><div class="sectionHead"><div><h3>Profil Workspace</h3><p class="muted small">Informasi perusahaan aktif.</p></div><button class="ghost" onclick="editCompany(\''+currentCompany().id+'\')">Edit</button></div><div class="list"><div class="listItem"><span>Perusahaan</span><b>'+esc(currentCompany().name)+'</b></div><div class="listItem"><span>Jenis bisnis</span><b>'+esc(currentCompany().type)+'</b></div><div class="listItem"><span>Cabang aktif</span><b>'+esc(currentBranch()?.name||'—')+'</b></div><div class="listItem"><span>Role kamu</span><b>'+esc(currentUser().role)+'</b></div></div></div></div><div class="card" style="margin-top:15px"><div class="sectionHead"><div><h3>Pengaturan Struk</h3><p class="muted small">Atur informasi yang tampil pada cetakan.</p></div></div><div class="switchRow"><div><b>Tampilkan logo</b></div><button class="toggle '+(S.receipt.showLogo?'on':'')+'" onclick="S.receipt.showLogo=!S.receipt.showLogo;save();render()"><i></i></button></div><div class="switchRow"><div><b>Tampilkan pajak</b></div><button class="toggle '+(S.receipt.showTax?'on':'')+'" onclick="S.receipt.showTax=!S.receipt.showTax;save();render()"><i></i></button></div><div class="field" style="margin-top:13px"><label>Footer struk</label><input value="'+esc(S.receipt.footer||'Terima kasih sudah berkunjung!')+'" onchange="S.receipt.footer=this.value;save()"></div></div><div class="card" style="margin-top:15px"><div class="notice">NEXORA V2 menambahkan modul operasional. Data masih tersimpan di browser; database online, autentikasi server, dan sinkronisasi multi-device menjadi fondasi V3.</div></div>';
 }
 
+
+function customers(){
+ const c=currentCompany(),rows=(S.customers||[]).filter(x=>x.companyId===c.id);
+ document.getElementById('content').innerHTML='<div class="bar"><div><h2>Pelanggan / CRM</h2><p class="muted">Kelola data pelanggan dan riwayat hubungan bisnis.</p></div><button class="primary" onclick="customerForm()">+ Tambah Pelanggan</button></div><div class="grid4"><div class="card kpi"><div class="kpiTop">Total pelanggan</div><b>'+rows.length+'</b><small>Workspace aktif</small></div><div class="card kpi"><div class="kpiTop">Member aktif</div><b>'+rows.filter(x=>x.status!==false).length+'</b><small>Status aktif</small></div><div class="card kpi"><div class="kpiTop">Punya email</div><b>'+rows.filter(x=>x.email).length+'</b><small>Data kontak</small></div><div class="card kpi"><div class="kpiTop">Punya telepon</div><b>'+rows.filter(x=>x.phone).length+'</b><small>Data kontak</small></div></div><div class="card tableWrap" style="margin-top:15px"><table class="table"><thead><tr><th>Nama</th><th>Kontak</th><th>Grup</th><th>Total transaksi</th><th>Status</th><th>Aksi</th></tr></thead><tbody>'+rows.map(x=>{const tx=S.transactions.filter(t=>t.companyId===c.id&&t.customerId===x.id);return '<tr><td><b>'+esc(x.name)+'</b><br><span class="muted small">'+esc(x.address||'')+'</span></td><td>'+esc(x.phone||'-')+'<br>'+esc(x.email||'-')+'</td><td><span class="badge">'+esc(x.group||'Umum')+'</span></td><td>'+tx.length+'</td><td><span class="badge '+(x.status!==false?'green':'red')+'">'+(x.status!==false?'Aktif':'Nonaktif')+'</span></td><td><button class="ghost" onclick="customerForm(\''+x.id+'\')">Edit</button></td></tr>'}).join('')+'</tbody></table></div>';
+}
+function customerForm(editId){
+ const old=editId?(S.customers||[]).find(x=>x.id===editId):{name:'',phone:'',email:'',address:'',group:'Umum',status:true};
+ modal(editId?'Edit Pelanggan':'Tambah Pelanggan','<div class="formGrid"><div class="field"><label>Nama pelanggan</label><input id="cfm_name" value="'+esc(old.name)+'"></div><div class="field"><label>Grup</label><select id="cfm_group"><option>Umum</option><option>Member</option><option>VIP</option><option>Reseller</option></select></div><div class="field"><label>Telepon</label><input id="cfm_phone" value="'+esc(old.phone||'')+'"></div><div class="field"><label>Email</label><input id="cfm_email" value="'+esc(old.email||'')+'"></div><div class="field full"><label>Alamat</label><textarea id="cfm_address" rows="2">'+esc(old.address||'')+'</textarea></div><div class="field"><label>Status</label><select id="cfm_status"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div></div>','<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveCustomer(\''+(editId||'')+'\')">Simpan</button>');
+ document.getElementById('cfm_group').value=old.group||'Umum';document.getElementById('cfm_status').value=String(old.status!==false);
+}
+function saveCustomer(editId){
+ const name=document.getElementById('cfm_name').value.trim();if(!name)return toast('Nama pelanggan wajib diisi');
+ const o={id:editId||id(),companyId:currentCompany().id,name,group:document.getElementById('cfm_group').value,phone:document.getElementById('cfm_phone').value.trim(),email:document.getElementById('cfm_email').value.trim(),address:document.getElementById('cfm_address').value.trim(),status:document.getElementById('cfm_status').value==='true'};
+ if(editId)S.customers[S.customers.findIndex(x=>x.id===editId)]=o;else S.customers.push(o);
+ logAudit(editId?'Mengubah pelanggan':'Menambah pelanggan','CRM',name);save();closeModal();render();toast('Data pelanggan tersimpan');
+}
+function suppliers(){
+ const c=currentCompany(),rows=(S.suppliers||[]).filter(x=>x.companyId===c.id);
+ document.getElementById('content').innerHTML='<div class="bar"><div><h2>Supplier</h2><p class="muted">Kelola pemasok bahan, barang, dan kebutuhan operasional.</p></div><button class="primary" onclick="supplierForm()">+ Tambah Supplier</button></div><div class="grid3"><div class="card kpi"><div class="kpiTop">Total supplier</div><b>'+rows.length+'</b><small>Workspace aktif</small></div><div class="card kpi"><div class="kpiTop">Aktif</div><b>'+rows.filter(x=>x.status!==false).length+'</b><small>Pemasok aktif</small></div><div class="card kpi"><div class="kpiTop">Total pembelian</div><b>'+money((S.purchases||[]).filter(x=>x.companyId===c.id).reduce((a,x)=>a+x.total,0))+'</b><small>Nilai tercatat</small></div></div><div class="card tableWrap" style="margin-top:15px"><table class="table"><thead><tr><th>Supplier</th><th>Kontak</th><th>Produk utama</th><th>Pembelian</th><th>Status</th><th>Aksi</th></tr></thead><tbody>'+rows.map(x=>{const ps=(S.purchases||[]).filter(p=>p.supplierId===x.id);return '<tr><td><b>'+esc(x.name)+'</b><br><span class="muted small">'+esc(x.address||'')+'</span></td><td>'+esc(x.phone||'-')+'<br>'+esc(x.email||'-')+'</td><td>'+esc(x.category||'Umum')+'</td><td>'+money(ps.reduce((a,p)=>a+p.total,0))+'</td><td><span class="badge '+(x.status!==false?'green':'red')+'">'+(x.status!==false?'Aktif':'Nonaktif')+'</span></td><td><button class="ghost" onclick="supplierForm(\''+x.id+'\')">Edit</button></td></tr>'}).join('')+'</tbody></table></div>';
+}
+function supplierForm(editId){
+ const old=editId?(S.suppliers||[]).find(x=>x.id===editId):{name:'',phone:'',email:'',address:'',category:'Bahan baku',status:true};
+ modal(editId?'Edit Supplier':'Tambah Supplier','<div class="formGrid"><div class="field"><label>Nama supplier</label><input id="sfm_name" value="'+esc(old.name)+'"></div><div class="field"><label>Kategori</label><select id="sfm_category"><option>Bahan baku</option><option>Kemasan</option><option>Peralatan</option><option>Jasa</option><option>Lainnya</option></select></div><div class="field"><label>Telepon</label><input id="sfm_phone" value="'+esc(old.phone||'')+'"></div><div class="field"><label>Email</label><input id="sfm_email" value="'+esc(old.email||'')+'"></div><div class="field full"><label>Alamat</label><textarea id="sfm_address" rows="2">'+esc(old.address||'')+'</textarea></div></div>','<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveSupplier(\''+(editId||'')+'\')">Simpan</button>');
+ document.getElementById('sfm_category').value=old.category||'Bahan baku';
+}
+function saveSupplier(editId){
+ const name=document.getElementById('sfm_name').value.trim();if(!name)return toast('Nama supplier wajib diisi');
+ const o={id:editId||id(),companyId:currentCompany().id,name,category:document.getElementById('sfm_category').value,phone:document.getElementById('sfm_phone').value.trim(),email:document.getElementById('sfm_email').value.trim(),address:document.getElementById('sfm_address').value.trim(),status:true};
+ if(editId)S.suppliers[S.suppliers.findIndex(x=>x.id===editId)]=o;else S.suppliers.push(o);
+ logAudit(editId?'Mengubah supplier':'Menambah supplier','Supplier',name);save();closeModal();render();toast('Supplier tersimpan');
+}
+function purchases(){
+ const c=currentCompany(),rows=(S.purchases||[]).filter(x=>x.companyId===c.id);
+ document.getElementById('content').innerHTML='<div class="bar"><div><h2>Pembelian</h2><p class="muted">Catat pembelian supplier sekaligus menambah stok.</p></div><button class="primary" onclick="purchaseForm()">+ Catat Pembelian</button></div><div class="grid4"><div class="card kpi"><div class="kpiTop">Pembelian</div><b>'+rows.length+'</b><small>Dokumen tercatat</small></div><div class="card kpi"><div class="kpiTop">Nilai pembelian</div><b>'+money(rows.reduce((a,x)=>a+x.total,0))+'</b><small>Total tercatat</small></div><div class="card kpi"><div class="kpiTop">Supplier</div><b>'+new Set(rows.map(x=>x.supplierId)).size+'</b><small>Supplier digunakan</small></div><div class="card kpi"><div class="kpiTop">Item</div><b>'+rows.reduce((a,x)=>a+(x.items||[]).reduce((z,i)=>z+i.qty,0),0)+'</b><small>Total unit</small></div></div><div class="card tableWrap" style="margin-top:15px"><table class="table"><thead><tr><th>No. Pembelian</th><th>Tanggal</th><th>Supplier</th><th>Item</th><th>Total</th><th>Status</th></tr></thead><tbody>'+rows.slice(0,30).map(x=>'<tr><td><b>'+esc(x.no)+'</b></td><td>'+new Date(x.date).toLocaleDateString('id-ID')+'</td><td>'+esc((S.suppliers.find(s=>s.id===x.supplierId)||{}).name||'-')+'</td><td>'+x.items.length+'</td><td><b>'+money(x.total)+'</b></td><td><span class="badge green">Diterima</span></td></tr>').join('')+'</tbody></table></div>';
+}
+let purchaseRows=[];
+function purchaseForm(){
+ const suppliers=(S.suppliers||[]).filter(x=>x.companyId===currentCompany().id&&x.status!==false),ps=S.products.filter(x=>x.companyId===currentCompany().id&&x.type==='Produk');
+ if(!suppliers.length)return toast('Tambahkan supplier terlebih dahulu');if(!ps.length)return toast('Tambahkan produk terlebih dahulu');
+ purchaseRows=[{productId:ps[0].id,qty:1,cost:ps[0].cost||0}];
+ modal('Catat Pembelian','<div class="formGrid"><div class="field full"><label>Supplier</label><select id="puf_supplier">'+suppliers.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')+'</select></div></div><div style="margin-top:15px"><div class="sectionHead"><div><h3>Item pembelian</h3><p class="muted small">Stok akan bertambah setelah disimpan.</p></div><button class="ghost" onclick="purchaseAddRow()">+ Item</button></div><div id="purchaseRows"></div></div><div id="purchaseTotal" class="notice" style="margin-top:14px"></div>','<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="savePurchase()">Simpan & Terima</button>');
+ drawPurchaseRows();
+}
+function purchaseAddRow(){const p=S.products.find(x=>x.companyId===currentCompany().id&&x.type==='Produk');if(p){purchaseRows.push({productId:p.id,qty:1,cost:p.cost||0});drawPurchaseRows()}}
+function drawPurchaseRows(){
+ const ps=S.products.filter(x=>x.companyId===currentCompany().id&&x.type==='Produk'),el=document.getElementById('purchaseRows');if(!el)return;
+ el.innerHTML=purchaseRows.map((r,i)=>'<div class="listItem" style="margin-bottom:8px"><select onchange="purchaseRows['+i+'].productId=this.value;drawPurchaseRows()">'+ps.map(p=>'<option value="'+p.id+'" '+(p.id===r.productId?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select><input style="max-width:90px" type="number" min="1" value="'+r.qty+'" onchange="purchaseRows['+i+'].qty=+this.value||1;drawPurchaseRows()"><input style="max-width:130px" type="number" min="0" value="'+r.cost+'" onchange="purchaseRows['+i+'].cost=+this.value||0;drawPurchaseRows()"><button class="dangerBtn" onclick="purchaseRows.splice('+i+',1);drawPurchaseRows()">×</button></div>').join('');
+ const total=purchaseRows.reduce((a,r)=>a+r.qty*r.cost,0);document.getElementById('purchaseTotal').innerHTML='Total pembelian: <b>'+money(total)+'</b> · '+purchaseRows.length+' item';
+}
+function savePurchase(){
+ if(!purchaseRows.length)return toast('Tambahkan minimal satu item');const clean=purchaseRows.filter(x=>x.productId&&x.qty>0&&x.cost>=0);if(!clean.length)return toast('Item pembelian tidak valid');
+ const total=clean.reduce((a,r)=>a+r.qty*r.cost,0),date=new Date().toISOString(),no='PO-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+String((S.purchases||[]).length+1).padStart(4,'0');
+ clean.forEach(r=>{const p=S.products.find(x=>x.id===r.productId);if(p){p.stock=(p.stock||0)+r.qty;p.cost=r.cost;S.movements.unshift({id:id(),companyId:currentCompany().id,branchId:currentBranch().id,productId:p.id,type:'IN',qty:r.qty,note:'Pembelian '+no,date})}});
+ S.purchases.unshift({id:id(),no,companyId:currentCompany().id,branchId:currentBranch().id,supplierId:document.getElementById('puf_supplier').value,items:clean,total,date,status:'Diterima'});
+ logAudit('Mencatat pembelian','Pembelian',no+' · '+money(total));save();closeModal();render();toast('Pembelian berhasil diterima dan stok bertambah');
+}
+function accounts(){
+ const c=currentCompany(),rows=(S.accounts||[]).filter(x=>x.companyId===c.id);
+ document.getElementById('content').innerHTML='<div class="bar"><div><h2>Akun Keuangan</h2><p class="muted">Chart of Accounts sederhana untuk fondasi pencatatan keuangan.</p></div><button class="primary" onclick="accountForm()">+ Tambah Akun</button></div><div class="grid3"><div class="card kpi"><div class="kpiTop">Aset</div><b>'+rows.filter(x=>x.type==='Aset').length+'</b><small>Akun aktif</small></div><div class="card kpi"><div class="kpiTop">Liabilitas</div><b>'+rows.filter(x=>x.type==='Liabilitas').length+'</b><small>Akun aktif</small></div><div class="card kpi"><div class="kpiTop">Pendapatan</div><b>'+rows.filter(x=>x.type==='Pendapatan').length+'</b><small>Akun aktif</small></div></div><div class="card tableWrap" style="margin-top:15px"><table class="table"><thead><tr><th>Kode</th><th>Nama akun</th><th>Tipe</th><th>Saldo awal</th><th>Aksi</th></tr></thead><tbody>'+rows.map(x=>'<tr><td><b>'+esc(x.code)+'</b></td><td>'+esc(x.name)+'</td><td><span class="badge">'+esc(x.type)+'</span></td><td>'+money(x.balance||0)+'</td><td><button class="ghost" onclick="accountForm(\''+x.id+'\')">Edit</button></td></tr>').join('')+'</tbody></table></div>';
+}
+function accountForm(editId){
+ const old=editId?(S.accounts||[]).find(x=>x.id===editId):{code:'',name:'',type:'Aset',balance:0};
+ modal(editId?'Edit Akun':'Tambah Akun','<div class="formGrid"><div class="field"><label>Kode</label><input id="af_code" value="'+esc(old.code)+'" placeholder="1100"></div><div class="field"><label>Tipe</label><select id="af_type"><option>Aset</option><option>Liabilitas</option><option>Ekuitas</option><option>Pendapatan</option><option>Beban</option></select></div><div class="field full"><label>Nama akun</label><input id="af_name" value="'+esc(old.name)+'" placeholder="Kas"></div><div class="field"><label>Saldo awal</label><input id="af_balance" type="number" value="'+(old.balance||0)+'"></div></div>','<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveAccount(\''+(editId||'')+'\')">Simpan</button>');document.getElementById('af_type').value=old.type||'Aset';
+}
+function saveAccount(editId){
+ const code=document.getElementById('af_code').value.trim(),name=document.getElementById('af_name').value.trim();if(!code||!name)return toast('Kode dan nama akun wajib diisi');
+ const o={id:editId||id(),companyId:currentCompany().id,code,name,type:document.getElementById('af_type').value,balance:+document.getElementById('af_balance').value||0};
+ if(editId)S.accounts[S.accounts.findIndex(x=>x.id===editId)]=o;else S.accounts.push(o);logAudit(editId?'Mengubah akun':'Menambah akun','Keuangan',code+' · '+name);save();closeModal();render();toast('Akun keuangan tersimpan');
+}
+function auditPage(){
+ const c=currentCompany(),rows=(S.auditLogs||[]).filter(x=>x.companyId===c.id);
+ document.getElementById('content').innerHTML='<div class="bar"><div><h2>Audit Log</h2><p class="muted">Riwayat aktivitas yang dilakukan di workspace.</p></div><span class="badge green">'+rows.length+' aktivitas</span></div><div class="card tableWrap"><table class="table"><thead><tr><th>Waktu</th><th>User</th><th>Modul</th><th>Aktivitas</th><th>Detail</th></tr></thead><tbody>'+rows.slice(0,100).map(x=>'<tr><td>'+new Date(x.date).toLocaleString('id-ID')+'</td><td>'+esc((S.users.find(u=>u.id===x.userId)||{}).name||'-')+'</td><td><span class="badge">'+esc(x.module||'-')+'</span></td><td>'+esc(x.action||'-')+'</td><td>'+esc(x.detail||'-')+'</td></tr>').join('')+'</tbody></table></div>';
+}
+function data(){
+ const keys=['companies','branches','users','products','transactions','expenses','income','customers','suppliers','purchases','recipes','movements','production','accounts','cashflows','auditLogs','receipt','theme'];
+ document.getElementById('content').innerHTML='<div class="grid2"><div class="card"><div class="sectionHead"><div><h3>Backup Data</h3><p class="muted small">Simpan seluruh data NEXORA ke file JSON.</p></div></div><div class="notice">Backup ini bekerja pada data yang tersimpan di browser perangkat ini.</div><button class="primary" style="margin-top:14px;width:100%" onclick="downloadBackup()">⬇ Export Backup JSON</button></div><div class="card"><div class="sectionHead"><div><h3>Restore Data</h3><p class="muted small">Pulihkan backup NEXORA dari file JSON.</p></div></div><div class="notice">Restore akan mengganti data workspace lokal yang sedang digunakan.</div><input id="restoreFile" type="file" accept=".json,application/json" style="margin-top:14px"><button class="ghost" style="margin-top:10px;width:100%" onclick="restoreBackup()">Restore Backup</button></div></div><div class="card" style="margin-top:15px"><div class="sectionHead"><div><h3>Status Data</h3><p class="muted small">Ringkasan penyimpanan lokal.</p></div></div><div class="grid3"><div class="listItem"><span>Perusahaan</span><b>'+S.companies.length+'</b></div><div class="listItem"><span>Produk</span><b>'+S.products.length+'</b></div><div class="listItem"><span>Transaksi</span><b>'+S.transactions.length+'</b></div></div></div>';
+}
+function downloadBackup(){
+ const keys=['companies','branches','users','products','transactions','expenses','income','customers','suppliers','purchases','recipes','movements','production','accounts','cashflows','auditLogs','receipt','theme'];
+ const payload={version:'NEXORA V4',exportedAt:new Date().toISOString(),data:{}};keys.forEach(k=>payload.data[k]=S[k]);
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nexora-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);logAudit('Export backup','Data','Backup JSON dibuat');save();toast('Backup berhasil dibuat');
+}
+function restoreBackup(){
+ const file=document.getElementById('restoreFile')?.files?.[0];if(!file)return toast('Pilih file backup terlebih dahulu');
+ const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result);if(!p.data||!p.version)return toast('File backup tidak valid');Object.keys(p.data).forEach(k=>{S[k]=p.data[k]});if(!S.income)S.income=[];if(!S.expenses)S.expenses=[];if(!S.customers)S.customers=[];if(!S.suppliers)S.suppliers=[];if(!S.purchases)S.purchases=[];if(!S.accounts)S.accounts=[];if(!S.auditLogs)S.auditLogs=[];logAudit('Restore backup','Data','Data dipulihkan dari file '+file.name);save();location.reload()}catch(e){toast('Backup gagal dibaca')}};r.readAsText(file);
+}
 function render(){shell()}
 render();
 </script>
