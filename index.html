@@ -282,15 +282,15 @@ function users(){
 }
 function userForm(editId){
  const c=currentCompany(),b=companyBranches(c.id),u=editId?S.users.find(x=>x.id===editId):{name:'',email:'',role:'Kasir',status:true,companyIds:[c.id],branchIds:b.slice(0,1).map(x=>x.id)};
- modal(editId?'Edit Pengguna':'Tambah Pengguna','<div class="formGrid"><div class="field"><label>Nama</label><input id="uf_name" value="'+esc(u.name)+'"></div><div class="field"><label>Email</label><input id="uf_email" type="email" value="'+esc(u.email)+'"></div><div class="field"><label>Role</label><select id="uf_role">'+Object.keys(roles).map(r=>'<option>'+r+'</option>').join('')+'</select></div><div class="field"><label>Status</label><select id="uf_status"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div><div class="field full"><label>Cabang yang bisa diakses</label><div class="list">'+b.map(x=>'<label class="listItem" style="cursor:pointer"><span>'+esc(x.name)+'</span><input type="checkbox" class="uf_branch" value="'+x.id+'" '+(u.branchIds.includes(x.id)?'checked':'')+' style="width:auto"></label>').join('')+'</div></div></div>',
+ modal(editId?'Edit Pengguna':'Tambah Pengguna','<div class="formGrid"><div class="field"><label>Nama</label><input id="uf_name" value="'+esc(u.name)+'"></div><div class="field"><label>Email</label><input id="uf_email" type="email" value="'+esc(u.email)+'"></div><div class="field"><label>PIN akun</label><input id="uf_pin" type="password" inputmode="numeric" maxlength="8" value="'+esc(u.pin||'1234')+'" placeholder="PIN login"></div><div class="field"><label>Role</label><select id="uf_role">'+Object.keys(roles).map(r=>'<option>'+r+'</option>').join('')+'</select></div><div class="field"><label>Status</label><select id="uf_status"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div><div class="field full"><label>Cabang yang bisa diakses</label><div class="list">'+b.map(x=>'<label class="listItem" style="cursor:pointer"><span>'+esc(x.name)+'</span><input type="checkbox" class="uf_branch" value="'+x.id+'" '+(u.branchIds.includes(x.id)?'checked':'')+' style="width:auto"></label>').join('')+'</div></div></div>',
  '<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveUser(\''+(editId||'')+'\')">Simpan</button>');
  document.getElementById('uf_role').value=u.role;document.getElementById('uf_status').value=String(u.status!==false);
 }
 function saveUser(editId){
  if(!requirePermission('manageUsers'))return;
- const name=document.getElementById('uf_name').value.trim(),email=document.getElementById('uf_email').value.trim();if(!name||!email)return toast('Nama dan email wajib diisi');
+ const name=document.getElementById('uf_name').value.trim(),email=document.getElementById('uf_email').value.trim(),pin=document.getElementById('uf_pin').value.trim();if(!name||!email)return toast('Nama dan email wajib diisi');if(!/^\d{4,8}$/.test(pin))return toast('PIN harus 4–8 digit');
  const bids=[...document.querySelectorAll('.uf_branch:checked')].map(x=>x.value);if(!bids.length)return toast('Pilih minimal satu cabang');
- const o={id:editId||id(),name,email,role:document.getElementById('uf_role').value,status:document.getElementById('uf_status').value==='true',companyIds:[currentCompany().id],branchIds:bids};
+ const o={id:editId||id(),name,email,pin,role:document.getElementById('uf_role').value,status:document.getElementById('uf_status').value==='true',companyIds:[currentCompany().id],branchIds:bids};
  if(editId){const old=S.users.find(x=>x.id===editId);o.companyIds=old.companyIds.includes(currentCompany().id)?old.companyIds:[...old.companyIds,currentCompany().id];S.users[S.users.findIndex(x=>x.id===editId)]=o}else S.users.push(o);
  save();closeModal();render();toast('Pengguna disimpan');
 }
@@ -428,6 +428,7 @@ function saveQuickCustomer(){
  S.customers=S.customers||[];S.customers.push(customer);logAudit('Menambah pelanggan dari Kasir','CRM',name);save();posCustomerId=customer.id;closeModal();checkoutForm();toast('Pelanggan ditambahkan dan dipilih');
 }
 function checkoutForm(){
+ if(!requirePermission('sell'))return;
  if(!cartV2.length)return toast('Keranjang masih kosong');
  const c=currentCompany(),customers=(S.customers||[]).filter(x=>x.companyId===c.id&&x.status!==false);
  const total=cartTotalV2();
@@ -576,6 +577,7 @@ function supplierForm(editId){
  document.getElementById('sfm_category').value=old.category||'Bahan baku';
 }
 function saveSupplier(editId){
+ if(!requirePermission('managePurchases'))return;
  const name=document.getElementById('sfm_name').value.trim();if(!name)return toast('Nama supplier wajib diisi');
  const o={id:editId||id(),companyId:currentCompany().id,name,category:document.getElementById('sfm_category').value,phone:document.getElementById('sfm_phone').value.trim(),email:document.getElementById('sfm_email').value.trim(),address:document.getElementById('sfm_address').value.trim(),status:true};
  if(editId)S.suppliers[S.suppliers.findIndex(x=>x.id===editId)]=o;else S.suppliers.push(o);
@@ -600,6 +602,7 @@ function drawPurchaseRows(){
  const total=purchaseRows.reduce((a,r)=>a+r.qty*r.cost,0);document.getElementById('purchaseTotal').innerHTML='Total pembelian: <b>'+money(total)+'</b> · '+purchaseRows.length+' item';
 }
 function savePurchase(){
+ if(!requirePermission('managePurchases'))return;
  if(!purchaseRows.length)return toast('Tambahkan minimal satu item');const clean=purchaseRows.filter(x=>x.productId&&x.qty>0&&x.cost>=0);if(!clean.length)return toast('Item pembelian tidak valid');
  const total=clean.reduce((a,r)=>a+r.qty*r.cost,0),date=new Date().toISOString(),no='PO-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+String((S.purchases||[]).length+1).padStart(4,'0');
  clean.forEach(r=>{const p=S.products.find(x=>x.id===r.productId);if(p){p.stock=(p.stock||0)+r.qty;p.cost=r.cost;S.movements.unshift({id:id(),companyId:currentCompany().id,branchId:currentBranch().id,productId:p.id,type:'IN',qty:r.qty,note:'Pembelian '+no,date})}});
@@ -615,6 +618,7 @@ function accountForm(editId){
  modal(editId?'Edit Akun':'Tambah Akun','<div class="formGrid"><div class="field"><label>Kode</label><input id="af_code" value="'+esc(old.code)+'" placeholder="1100"></div><div class="field"><label>Tipe</label><select id="af_type"><option>Aset</option><option>Liabilitas</option><option>Ekuitas</option><option>Pendapatan</option><option>Beban</option></select></div><div class="field full"><label>Nama akun</label><input id="af_name" value="'+esc(old.name)+'" placeholder="Kas"></div><div class="field"><label>Saldo awal</label><input id="af_balance" type="number" value="'+(old.balance||0)+'"></div></div>','<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveAccount(\''+(editId||'')+'\')">Simpan</button>');document.getElementById('af_type').value=old.type||'Aset';
 }
 function saveAccount(editId){
+ if(!requirePermission('manageFinance'))return;
  const code=document.getElementById('af_code').value.trim(),name=document.getElementById('af_name').value.trim();if(!code||!name)return toast('Kode dan nama akun wajib diisi');
  const o={id:editId||id(),companyId:currentCompany().id,code,name,type:document.getElementById('af_type').value,balance:+document.getElementById('af_balance').value||0};
  if(editId)S.accounts[S.accounts.findIndex(x=>x.id===editId)]=o;else S.accounts.push(o);logAudit(editId?'Mengubah akun':'Menambah akun','Keuangan',code+' · '+name);save();closeModal();render();toast('Akun keuangan tersimpan');
@@ -636,7 +640,7 @@ function restoreBackup(){
  const file=document.getElementById('restoreFile')?.files?.[0];if(!file)return toast('Pilih file backup terlebih dahulu');
  const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result);if(!p.data||!p.version)return toast('File backup tidak valid');Object.keys(p.data).forEach(k=>{S[k]=p.data[k]});if(!S.income)S.income=[];if(!S.expenses)S.expenses=[];if(!S.customers)S.customers=[];if(!S.suppliers)S.suppliers=[];if(!S.purchases)S.purchases=[];if(!S.accounts)S.accounts=[];if(!S.auditLogs)S.auditLogs=[];logAudit('Restore backup','Data','Data dipulihkan dari file '+file.name);save();location.reload()}catch(e){toast('Backup gagal dibaca')}};r.readAsText(file);
 }
-function render(){shell()}
+function render(){if(!S.session?.loggedIn){document.getElementById('app').innerHTML='';applyTheme();loginForm();return}const u=currentUser();if(!u||u.status===false){S.session={loggedIn:false,userId:null};save();return render()}shell()}
 render();
 </script>
 </body>
