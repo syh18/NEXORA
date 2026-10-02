@@ -207,9 +207,31 @@ function setBranch(bid){S.currentBranchId=bid;save();render();toast('Cabang akti
 function switchUser(uid){const u=S.users.find(x=>x.id===uid);if(!u||u.status===false)return toast('Akun tidak tersedia');S.currentUserId=u.id;const valid=S.companies.filter(c=>u.companyIds.includes(c.id));if(!valid.some(c=>c.id===S.currentCompanyId))S.currentCompanyId=valid[0]?.id;const bs=companyBranches(S.currentCompanyId).filter(b=>u.branchIds.includes(b.id));if(!bs.some(b=>b.id===S.currentBranchId))S.currentBranchId=bs[0]?.id;S.session={loggedIn:true,userId:u.id};save();render();toast('Masuk sebagai '+u.name+' · '+u.role)}
 function loginForm(){
  const savedEmail=localStorage.getItem('nexora_login_email')||'';
- document.getElementById('modalBg').innerHTML='<div class="modal"><div class="modalHead"><div><h3>Masuk ke NEXORA</h3><p class="muted small">Gunakan akun NEXORA yang terhubung ke cloud.</p></div></div><div class="formGrid"><div class="field full"><label>Email</label><input id="login_email" type="email" autocomplete="email" value="'+esc(savedEmail)+'" placeholder="nama@email.com"></div><div class="field full"><label>Password</label><input id="login_password" type="password" autocomplete="current-password" placeholder="Masukkan password" onkeydown="if(event.key===\'Enter\')loginSubmit()"></div></div><div class="notice" style="margin-top:14px">Login sekarang menggunakan <b>Supabase Authentication</b>. PIN lokal lama tidak digunakan untuk login cloud.</div><div id="login_error" class="small" style="margin-top:10px;color:var(--danger)"></div><div class="modalFoot"><button class="primary" style="width:100%" onclick="loginSubmit()">Masuk</button></div></div>';
+ document.getElementById('modalBg').innerHTML='<div class="modal"><div class="modalHead"><div><h3>Masuk ke NEXORA</h3><p class="muted small">Login aman menggunakan Supabase Authentication.</p></div></div><div class="formGrid"><div class="field full"><label>Email</label><input id="login_email" type="email" autocomplete="email" value="'+esc(savedEmail)+'" placeholder="nama@email.com"></div><div class="field full"><label>Password</label><input id="login_password" type="password" autocomplete="current-password" placeholder="Masukkan password" onkeydown="if(event.key===\\'Enter\\')loginSubmit()"></div></div><div id="login_error" class="small" style="margin-top:10px;color:var(--danger);min-height:18px"></div><div class="actions" style="margin-top:12px;display:grid;gap:8px"><button class="primary" style="width:100%" onclick="loginSubmit()">Masuk</button><button class="ghost" style="width:100%" onclick="sendMagicLink()">Kirim Link Login ke Email</button><button class="ghost" style="width:100%" onclick="resetPassword()">Lupa Password / Buat Password Baru</button></div><div class="notice" style="margin-top:14px">Akun Owner kamu sudah terhubung ke perusahaan <b>NEXORA</b>. PIN lokal lama tidak digunakan untuk login cloud.</div></div>';
  document.getElementById('modalBg').classList.remove('hidden');
  setTimeout(()=>document.getElementById('login_email')?.focus(),50);
+}
+async function sendMagicLink(){
+ const email=document.getElementById('login_email')?.value.trim();
+ const errorEl=document.getElementById('login_error');
+ if(!email){if(errorEl)errorEl.textContent='Masukkan email terlebih dahulu.';return}
+ if(errorEl)errorEl.textContent='Mengirim link login...';
+ const redirectTo=window.location.origin+window.location.pathname;
+ const {error}=await supabaseClient.auth.signInWithOtp({email,options:{emailRedirectTo:redirectTo}});
+ if(error){if(errorEl)errorEl.textContent=error.message||'Link login gagal dikirim.';return}
+ localStorage.setItem('nexora_login_email',email);
+ if(errorEl)errorEl.textContent='Link login sudah dikirim. Cek inbox email kamu.';
+}
+async function resetPassword(){
+ const email=document.getElementById('login_email')?.value.trim();
+ const errorEl=document.getElementById('login_error');
+ if(!email){if(errorEl)errorEl.textContent='Masukkan email terlebih dahulu.';return}
+ if(errorEl)errorEl.textContent='Mengirim link reset password...';
+ const redirectTo=window.location.origin+window.location.pathname;
+ const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo});
+ if(error){if(errorEl)errorEl.textContent=error.message||'Link reset gagal dikirim.';return}
+ localStorage.setItem('nexora_login_email',email);
+ if(errorEl)errorEl.textContent='Link reset sudah dikirim. Cek inbox email kamu.';
 }
 async function loadCloudUser(authUser){
  const {data:profile,error:profileError}=await supabaseClient
@@ -290,6 +312,16 @@ async function loginSubmit(){
  }
 }
 
+supabaseClient.auth.onAuthStateChange(async (event, session)=>{
+ if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&session?.user&&!cloudAuthReady){
+   try{await loadCloudUser(session.user);render();}catch(e){console.error(e)}
+ }
+ if(event==='SIGNED_OUT'){
+   cloudAuthReady=false;
+   S.session={loggedIn:false,userId:null};
+   save();
+ }
+});
 async function bootstrapAuth(){
  applyTheme();
  const {data:{session}}=await supabaseClient.auth.getSession();
