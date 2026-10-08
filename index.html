@@ -335,7 +335,7 @@ async function sendMagicLink(){
   if(el)el.textContent='Jika akun terdaftar, periksa inbox dan spam untuk link login.';
  }catch(e){if(el)el.textContent='Gagal mengirim link: '+(e.message||'Coba lagi.')}
 }
-async function loginSubmit(){
+async async function loginSubmit(){
  const email=document.getElementById('login_email')?.value.trim();
  const password=document.getElementById('login_password')?.value||'';
  const errorEl=document.getElementById('login_error');
