@@ -346,7 +346,7 @@ async function loginSubmit(){
  if(errorEl)errorEl.textContent='Memproses login...';
  const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
  if(error){
-   if(errorEl)errorEl.textContent=error.message||'Login gagal.';
+   if(errorEl)errorEl.textContent='Email atau password salah. Silakan cek kembali data login kamu.';
    return;
  }
  try{
