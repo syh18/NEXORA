@@ -208,6 +208,26 @@ function setBranch(bid){S.currentBranchId=bid;save();render();toast('Cabang akti
 function switchUser(uid){const u=S.users.find(x=>x.id===uid);if(!u||u.status===false)return toast('Akun tidak tersedia');S.currentUserId=u.id;const valid=S.companies.filter(c=>u.companyIds.includes(c.id));if(!valid.some(c=>c.id===S.currentCompanyId))S.currentCompanyId=valid[0]?.id;const bs=companyBranches(S.currentCompanyId).filter(b=>u.branchIds.includes(b.id));if(!bs.some(b=>b.id===S.currentBranchId))S.currentBranchId=bs[0]?.id;S.session={loggedIn:true,userId:u.id};save();render();toast('Masuk sebagai '+u.name+' · '+u.role)}
 function loginForm(){document.getElementById('authScreen')?.classList.remove('hidden');document.getElementById('nexoraLoginPanel')?.style.setProperty('display','block');document.getElementById('nexoraRegisterPanel')?.style.setProperty('display','none');const savedEmail=localStorage.getItem('nexora_login_email')||'';const emailEl=document.getElementById('login_email');if(emailEl)emailEl.value=savedEmail;setTimeout(()=>document.getElementById('login_email')?.focus(),50);}
 function signupForm(){document.getElementById('authScreen')?.classList.remove('hidden');document.getElementById('nexoraLoginPanel')?.style.setProperty('display','none');document.getElementById('nexoraRegisterPanel')?.style.setProperty('display','block');setTimeout(()=>document.getElementById('signup_name')?.focus(),50);}
+async function setupInitialCompany(userId,companyName){
+ const {data:existing,error:existingError}=await supabaseClient
+   .from('company_users').select('company_id').eq('user_id',userId).eq('status','active').limit(1);
+ if(existingError)throw existingError;
+ if(existing?.length)return existing[0].company_id;
+ if(!companyName)throw new Error('Nama perusahaan untuk akun ini belum ditemukan. Silakan daftar ulang.');
+ const {data:company,error:companyError}=await supabaseClient.from('companies').insert({
+   name:companyName,type:'barang_jasa',tax_percent:0,owner_id:userId
+ }).select().single();
+ if(companyError)throw companyError;
+ const {error:memberError}=await supabaseClient.from('company_users').insert({
+   company_id:company.id,user_id:userId,role:'owner',status:'active'
+ });
+ if(memberError)throw memberError;
+ const {error:branchError}=await supabaseClient.from('branches').insert({
+   company_id:company.id,name:'Main Branch',code:'MAIN',address:'',phone:'',is_active:true
+ });
+ if(branchError)throw branchError;
+ return company.id;
+}
 async function signupSubmit(){
  const name=document.getElementById('signup_name')?.value.trim();
  const companyName=document.getElementById('signup_company')?.value.trim();
@@ -222,26 +242,16 @@ async function signupSubmit(){
  const {data,error}=await supabaseClient.auth.signUp({email,password,options:{data:{name}}});
  if(error){if(errorEl)errorEl.textContent=error.message||'Pendaftaran gagal.';return}
  if(!data.user){if(errorEl)errorEl.textContent='Pendaftaran gagal: user tidak dibuat.';return}
+ localStorage.setItem('nexora_pending_signup',JSON.stringify({email,name,companyName}));
  if(!data.session){
-   if(errorEl)errorEl.textContent='Akun berhasil dibuat. Cek email untuk konfirmasi, lalu kembali ke NEXORA untuk login.';
+   if(errorEl)errorEl.textContent='Akun berhasil dibuat. Cek email untuk konfirmasi, lalu login kembali agar perusahaan otomatis dibuat.';
    localStorage.setItem('nexora_login_email',email);
    return;
  }
  try{
-   const userId=data.user.id;
-   const {data:company,error:companyError}=await supabaseClient.from('companies').insert({
-     name:companyName,type:'barang_jasa',tax_percent:0,owner_id:userId
-   }).select().single();
-   if(companyError)throw companyError;
-   const {error:memberError}=await supabaseClient.from('company_users').insert({
-     company_id:company.id,user_id:userId,role:'owner',status:'active'
-   });
-   if(memberError)throw memberError;
-   const {error:branchError}=await supabaseClient.from('branches').insert({
-     company_id:company.id,name:'Main Branch',code:'MAIN',address:'',phone:'',is_active:true
-   });
-   if(branchError)throw branchError;
+   await setupInitialCompany(data.user.id,companyName);
    await loadCloudUser(data.user);
+   localStorage.removeItem('nexora_pending_signup');
    localStorage.setItem('nexora_login_email',email);
    document.getElementById('authScreen')?.classList.add('hidden');closeModal();render();toast('Akun dan perusahaan berhasil dibuat');
  }catch(e){
@@ -318,6 +328,12 @@ async function loginSubmit(){
    return;
  }
  try{
+   let pending=null;
+   try{pending=JSON.parse(localStorage.getItem('nexora_pending_signup')||'null')}catch(_){}
+   if(pending?.email?.toLowerCase()===email.toLowerCase()){
+     await setupInitialCompany(data.user.id,pending.companyName);
+     localStorage.removeItem('nexora_pending_signup');
+   }
    await loadCloudUser(data.user);
    localStorage.setItem('nexora_login_email',email);
    document.getElementById('authScreen')?.classList.add('hidden');closeModal();render();toast('Selamat datang di NEXORA');
