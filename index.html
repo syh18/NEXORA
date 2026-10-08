@@ -250,7 +250,7 @@ async function signupSubmit(){
 }
 async function loadCloudUser(authUser){
  const {data:profile,error:profileError}=await supabaseClient
-   .from('profiles').select('id,name,email,status').eq('id',authUser.id).maybeSingle();
+   .from('profiles').select('*').eq('id',authUser.id).maybeSingle();
  if(profileError) throw profileError;
  if(!profile) throw new Error('Profil NEXORA belum ditemukan untuk akun ini.');
  if(profile.status==='inactive') throw new Error('Akun NEXORA sedang tidak aktif.');
@@ -282,7 +282,7 @@ async function loadCloudUser(authUser){
    id:b.id,companyId:b.company_id,name:b.name,code:b.code,address:b.address||'',phone:b.phone||'',status:b.is_active!==false
  }));
  const localUser={
-   id:authUser.id,name:profile.name||authUser.email?.split('@')[0]||'User',
+   id:authUser.id,name:profile.name||profile.full_name||profile.display_name||authUser.user_metadata?.name||authUser.user_metadata?.full_name||authUser.email?.split('@')[0]||'User',
    email:profile.email||authUser.email||'',pin:null,
    role:roleMap[primaryMembership.role]||'Kasir',
    companyIds,branchIds:localBranches.map(b=>b.id),status:true,
