@@ -313,6 +313,28 @@ async function loadCloudUser(authUser){
  save();
 }
 
+async function resetPassword(){
+ const email=(document.getElementById('login_email')?.value||'').trim();
+ const el=document.getElementById('login_error');
+ if(!email){if(el)el.textContent='Masukkan email akun terlebih dahulu.';return}
+ if(el)el.textContent='Mengirim email pemulihan...';
+ try{
+  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  if(error)throw error;
+  if(el)el.textContent='Jika email terdaftar, link reset password akan dikirim. Periksa inbox dan spam.';
+ }catch(e){if(el)el.textContent='Gagal mengirim email: '+(e.message||'Coba lagi.')}
+}
+async function sendMagicLink(){
+ const email=(document.getElementById('login_email')?.value||'').trim();
+ const el=document.getElementById('login_error');
+ if(!email){if(el)el.textContent='Masukkan email akun terlebih dahulu.';return}
+ if(el)el.textContent='Mengirim link login...';
+ try{
+  const {error}=await supabaseClient.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:window.location.origin+window.location.pathname}});
+  if(error)throw error;
+  if(el)el.textContent='Jika akun terdaftar, periksa inbox dan spam untuk link login.';
+ }catch(e){if(el)el.textContent='Gagal mengirim link: '+(e.message||'Coba lagi.')}
+}
 async function loginSubmit(){
  const email=document.getElementById('login_email')?.value.trim();
  const password=document.getElementById('login_password')?.value||'';
