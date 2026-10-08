@@ -393,7 +393,7 @@ async function loginSubmit(){
 
 supabaseClient.auth.onAuthStateChange(async (event, session)=>{
  if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&session?.user&&!cloudAuthReady){
-   try{await loadCloudUser(session.user);render();}catch(e){console.error(e)}
+   try{await acceptPendingInvite();await loadCloudUser(session.user);render();}catch(e){console.error(e)}
  }
  if(event==='SIGNED_OUT'){
    cloudAuthReady=false;
@@ -401,11 +401,35 @@ supabaseClient.auth.onAuthStateChange(async (event, session)=>{
    save();
  }
 });
+async function acceptPendingInvite(){
+ const params=new URLSearchParams(window.location.search);
+ const invitationId=params.get('invite');
+ if(!invitationId)return true;
+ try{
+   const {data:{session}}=await supabaseClient.auth.getSession();
+   if(!session?.access_token)return true;
+   const response=await fetch('/api/accept-invite',{
+     method:'POST',
+     headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+     body:JSON.stringify({invitationId})
+   });
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.error||'Undangan tidak dapat diterima.');
+   window.history.replaceState({},document.title,window.location.pathname);
+   toast('Undangan diterima. Selamat datang di '+(result.role||'tim')+' NEXORA.');
+   return true;
+ }catch(e){
+   console.error(e);
+   toast(e.message||'Undangan tidak dapat diproses.');
+   return false;
+ }
+}
 async function bootstrapAuth(){
  applyTheme();
  const {data:{session}}=await supabaseClient.auth.getSession();
  if(session?.user){
    try{
+     await acceptPendingInvite();
      await loadCloudUser(session.user);
      render();
      return;
@@ -498,71 +522,46 @@ function saveBranch(editId){
 }
 function users(){
  const c=currentCompany(),us=S.users.filter(u=>u.companyIds.includes(c?.id));
- document.getElementById('content').innerHTML='<div class="bar"><div><h2>Pengguna & Role</h2><p class="muted">Atur siapa yang boleh mengakses workspace ini.</p></div><button class="primary" onclick="userForm()">+ Tambah Pengguna</button></div><div class="card tableWrap"><table class="table"><thead><tr><th>Pengguna</th><th>Role</th><th>Cabang</th><th>Status</th><th>Aksi</th></tr></thead><tbody>'+us.map(u=>'<tr><td><div class="listMain"><div class="avatar">'+initials(u.name)+'</div><div><b>'+esc(u.name)+'</b><span class="muted small">'+esc(u.email)+'</span></div></div></td><td><span class="badge '+(u.role==='Owner'?'green':'')+'">'+u.role+'</span></td><td>'+companyBranches(c.id).filter(b=>u.branchIds.includes(b.id)).map(b=>esc(b.name)).join(', ')+'</td><td><span class="badge '+(u.status?'green':'red')+'">'+(u.status?'Aktif':'Nonaktif')+'</span></td><td><button class="ghost" onclick="userForm(\''+u.id+'\')">Edit</button></td></tr>').join('')+'</tbody></table></div><div class="grid3" style="margin-top:15px">'+Object.entries(roles).map(([r,v])=>'<div class="card roleCard"><h3>'+r+'</h3><p class="muted small">'+v.desc+'</p><div class="perm">'+v.perms.slice(0,5).map(p=>'<span class="badge">'+p+'</span>').join('')+(v.perms.length>5?'<span class="badge">+'+(v.perms.length-5)+'</span>':'')+'</div></div>').join('')+'</div>';
+ document.getElementById('content').innerHTML='<div class="bar"><div><h2>Pengguna & Role</h2><p class="muted">Atur siapa yang boleh mengakses workspace ini.</p></div><button class="primary" onclick="userForm()">+ Undang Member</button></div><div class="card tableWrap"><table class="table"><thead><tr><th>Pengguna</th><th>Role</th><th>Cabang</th><th>Status</th><th>Aksi</th></tr></thead><tbody>'+us.map(u=>'<tr><td><div class="listMain"><div class="avatar">'+initials(u.name)+'</div><div><b>'+esc(u.name)+'</b><span class="muted small">'+esc(u.email)+'</span></div></div></td><td><span class="badge '+(u.role==='Owner'?'green':'')+'">'+u.role+'</span></td><td>'+companyBranches(c.id).filter(b=>u.branchIds.includes(b.id)).map(b=>esc(b.name)).join(', ')+'</td><td><span class="badge '+(u.status?'green':'red')+'">'+(u.status?'Aktif':'Nonaktif')+'</span></td><td><button class="ghost" onclick="userForm(\''+u.id+'\')">Edit</button></td></tr>').join('')+'</tbody></table></div><div class="grid3" style="margin-top:15px">'+Object.entries(roles).map(([r,v])=>'<div class="card roleCard"><h3>'+r+'</h3><p class="muted small">'+v.desc+'</p><div class="perm">'+v.perms.slice(0,5).map(p=>'<span class="badge">'+p+'</span>').join('')+(v.perms.length>5?'<span class="badge">+'+(v.perms.length-5)+'</span>':'')+'</div></div>').join('')+'</div>';
 }
 function userForm(editId){
  const c=currentCompany(),b=companyBranches(c.id),u=editId?S.users.find(x=>x.id===editId):{name:'',email:'',role:'Kasir',status:true,companyIds:[c.id],branchIds:b.slice(0,1).map(x=>x.id)};
- modal(editId?'Edit Pengguna':'Tambah Pengguna','<div class="formGrid"><div class="field"><label>Nama</label><input id="uf_name" value="'+esc(u.name)+'"></div><div class="field"><label>Email</label><input id="uf_email" type="email" value="'+esc(u.email)+'"></div><div class="field"><label>PIN akun</label><input id="uf_pin" type="password" inputmode="numeric" maxlength="8" value="'+esc(u.pin||'1234')+'" placeholder="PIN login"></div><div class="field"><label>Role</label><select id="uf_role">'+Object.keys(roles).map(r=>'<option>'+r+'</option>').join('')+'</select></div><div class="field"><label>Status</label><select id="uf_status"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div><div class="field full"><label>Cabang yang bisa diakses</label><div class="list">'+b.map(x=>'<label class="listItem" style="cursor:pointer"><span>'+esc(x.name)+'</span><input type="checkbox" class="uf_branch" value="'+x.id+'" '+(u.branchIds.includes(x.id)?'checked':'')+' style="width:auto"></label>').join('')+'</div></div></div>',
- '<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveUser(\''+(editId||'')+'\')">Simpan</button>');
- document.getElementById('uf_role').value=u.role;document.getElementById('uf_status').value=String(u.status!==false);
+ const isInvite=!editId;
+ modal(editId?'Edit Member':'Undang Member','<div class="notice" style="margin-bottom:14px">'+(isInvite?'Masukkan email anggota tim. NEXORA akan mengirim link undangan ke email tersebut. Member membuat passwordnya sendiri saat menerima undangan.':'Ubah role, status, atau cabang member.')+'</div><div class="formGrid"><div class="field full"><label>Email member</label><input id="uf_email" type="email" value="'+esc(u.email)+'" placeholder="nama@perusahaan.com" '+(editId?'readonly':'')+'></div><div class="field"><label>Nama</label><input id="uf_name" value="'+esc(u.name)+'" placeholder="Nama member"></div><div class="field"><label>Role</label><select id="uf_role">'+Object.keys(roles).filter(r=>r!=='Owner').map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+(isInvite?'':'<div class="field"><label>Status</label><select id="uf_status"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div>')+'<div class="field full"><label>Cabang yang bisa diakses</label><div class="list">'+b.map(x=>'<label class="listItem" style="cursor:pointer"><span>'+esc(x.name)+'</span><input type="checkbox" class="uf_branch" value="'+x.id+'" '+(u.branchIds.includes(x.id)?'checked':'')+' style="width:auto"></label>').join('')+'</div></div></div>',
+ '<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveUser(\''+(editId||'')+'\')">'+(isInvite?'Kirim Undangan':'Simpan')+'</button>');
+ document.getElementById('uf_role').value=u.role;
+ if(!isInvite)document.getElementById('uf_status').value=String(u.status!==false);
 }
 async function saveUser(editId){
  if(!requirePermission('manageUsers'))return;
- const name=document.getElementById('uf_name').value.trim(),email=document.getElementById('uf_email').value.trim().toLowerCase(),pin=document.getElementById('uf_pin').value.trim();
- if(!name||!email)return toast('Nama dan email wajib diisi');
- if(!/^\\d{4,8}$/.test(pin))return toast('PIN harus 4–8 digit');
+ const name=document.getElementById('uf_name')?.value.trim()||'',email=document.getElementById('uf_email')?.value.trim().toLowerCase()||'';
  const bids=[...document.querySelectorAll('.uf_branch:checked')].map(x=>x.value);
+ const roleKey=Object.keys({Owner:1,Manajer:1,Kasir:1,Marketing:1,Gudang:1}).find(x=>x===document.getElementById('uf_role')?.value)||'Kasir';
+ if(!email)return toast('Email member wajib diisi');
  if(!bids.length)return toast('Pilih minimal satu cabang');
 
- // Hubungkan email dengan akun NEXORA yang sudah terdaftar di Auth/profiles.
  if(!editId){
    try{
-     const {data:profile,error:profileError}=await supabaseClient
-       .from('profiles').select('id,name,email,status').ilike('email',email).maybeSingle();
-     if(profileError)throw profileError;
-     if(!profile)throw new Error('Email ini belum terdaftar sebagai akun NEXORA. Minta pengguna tersebut daftar/login terlebih dahulu.');
-     if(profile.status==='inactive')throw new Error('Akun tersebut sedang nonaktif.');
-     const {data:existing,error:existingError}=await supabaseClient
-       .from('company_users').select('id,company_id,user_id,status')
-       .eq('company_id',currentCompany().id).eq('user_id',profile.id).maybeSingle();
-     if(existingError)throw existingError;
-     if(existing?.status==='active')throw new Error('Email tersebut sudah menjadi member perusahaan ini.');
-
-     if(existing){
-       const {error:updateError}=await supabaseClient.from('company_users')
-         .update({role:document.getElementById('uf_role').value,status:'active'}).eq('id',existing.id);
-       if(updateError)throw updateError;
-     }else{
-       const {error:memberError}=await supabaseClient.from('company_users').insert({
-         company_id:currentCompany().id,user_id:profile.id,
-         role:document.getElementById('uf_role').value,status:'active'
-       });
-       if(memberError)throw memberError;
-     }
-
-     const cloudUser={
-       id:profile.id,authUserId:profile.id,name:profile.name||name,email:profile.email||email,
-       pin,role:document.getElementById('uf_role').value,
-       status:document.getElementById('uf_status').value==='true',
-       companyIds:[currentCompany().id],branchIds:bids,cloud:true
-     };
-     S.users=S.users||[];
-     const idx=S.users.findIndex(x=>x.authUserId===profile.id||x.id===profile.id);
-     if(idx>=0)S.users[idx]={...S.users[idx],...cloudUser};
-     else S.users.push(cloudUser);
-     save();closeModal();render();
-     toast('Akun '+email+' berhasil ditambahkan sebagai member');
+     const {data:{session}}=await supabaseClient.auth.getSession();
+     if(!session?.access_token)throw new Error('Sesi Owner tidak ditemukan. Silakan login ulang.');
+     const response=await fetch('/api/invite-member',{
+       method:'POST',
+       headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+       body:JSON.stringify({email,name,role:roleKey.toLowerCase(),branchIds:bids,companyId:currentCompany().id})
+     });
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(result.error||'Gagal mengirim undangan.');
+     closeModal();render();toast('Undangan dikirim ke '+email);
      return;
-   }catch(e){
-     return toast(e.message||'Gagal menghubungkan akun member');
-   }
+   }catch(e){return toast(e.message||'Gagal mengirim undangan member.')}
  }
 
- const o={id:editId,name,email,pin,role:document.getElementById('uf_role').value,status:document.getElementById('uf_status').value==='true',companyIds:[currentCompany().id],branchIds:bids};
+ const status=document.getElementById('uf_status')?.value==='true';
+ const o={id:editId,name,email,pin:'',role:roleKey,status,companyIds:[currentCompany().id],branchIds:bids};
  const old=S.users.find(x=>x.id===editId);
  if(old)o.companyIds=old.companyIds.includes(currentCompany().id)?old.companyIds:[...old.companyIds,currentCompany().id];
  S.users[S.users.findIndex(x=>x.id===editId)]=o;
- save();closeModal();render();toast('Pengguna disimpan');
+ save();closeModal();render();toast('Member diperbarui');
 }
 function pos(){
  const c=currentCompany(),ps=S.products.filter(p=>p.companyId===c.id);document.getElementById('content').innerHTML='<div class="grid2"><div class="card"><div class="sectionHead"><div><h3>Kasir NEXORA</h3><p class="muted small">POS dasar tetap tersedia di V1.</p></div><span class="badge green">Online</span></div><input class="search" placeholder="Cari produk atau layanan..." oninput="posSearch(this.value)"><div id="posList" class="list" style="margin-top:12px">'+ps.map(p=>'<div class="listItem"><div class="listMain"><div class="miniIcon">'+(p.type==='Layanan'?'S':'P')+'</div><div><b>'+esc(p.name)+'</b><span>'+esc(p.category)+' · '+money(p.price)+'</span></div></div><button class="primary" onclick="quickSale(\''+p.id+'\')">Tambah</button></div>').join('')+'</div></div><div class="card"><div class="sectionHead"><div><h3>Transaksi Terbaru</h3><p class="muted small">Cabang '+esc(currentBranch()?.name||'')+'</p></div></div><div class="list">'+S.transactions.filter(t=>t.companyId===c.id&&t.branchId===currentBranch()?.id).slice(0,6).map(t=>'<div class="listItem"><div class="listMain"><div class="miniIcon">↗</div><div><b>'+money(t.total)+'</b><span>'+new Date(t.date).toLocaleString('id-ID')+'</span></div></div><span class="badge green">Selesai</span></div>').join('')+'</div></div></div>';
