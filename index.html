@@ -480,12 +480,62 @@ function userForm(editId){
  '<button class="ghost" onclick="closeModal()">Batal</button><button class="primary" onclick="saveUser(\''+(editId||'')+'\')">Simpan</button>');
  document.getElementById('uf_role').value=u.role;document.getElementById('uf_status').value=String(u.status!==false);
 }
-function saveUser(editId){
+async function saveUser(editId){
  if(!requirePermission('manageUsers'))return;
- const name=document.getElementById('uf_name').value.trim(),email=document.getElementById('uf_email').value.trim(),pin=document.getElementById('uf_pin').value.trim();if(!name||!email)return toast('Nama dan email wajib diisi');if(!/^\d{4,8}$/.test(pin))return toast('PIN harus 4–8 digit');
- const bids=[...document.querySelectorAll('.uf_branch:checked')].map(x=>x.value);if(!bids.length)return toast('Pilih minimal satu cabang');
- const o={id:editId||id(),name,email,pin,role:document.getElementById('uf_role').value,status:document.getElementById('uf_status').value==='true',companyIds:[currentCompany().id],branchIds:bids};
- if(editId){const old=S.users.find(x=>x.id===editId);o.companyIds=old.companyIds.includes(currentCompany().id)?old.companyIds:[...old.companyIds,currentCompany().id];S.users[S.users.findIndex(x=>x.id===editId)]=o}else S.users.push(o);
+ const name=document.getElementById('uf_name').value.trim(),email=document.getElementById('uf_email').value.trim().toLowerCase(),pin=document.getElementById('uf_pin').value.trim();
+ if(!name||!email)return toast('Nama dan email wajib diisi');
+ if(!/^\\d{4,8}$/.test(pin))return toast('PIN harus 4–8 digit');
+ const bids=[...document.querySelectorAll('.uf_branch:checked')].map(x=>x.value);
+ if(!bids.length)return toast('Pilih minimal satu cabang');
+
+ // Hubungkan email dengan akun NEXORA yang sudah terdaftar di Auth/profiles.
+ if(!editId){
+   try{
+     const {data:profile,error:profileError}=await supabaseClient
+       .from('profiles').select('id,name,email,status').ilike('email',email).maybeSingle();
+     if(profileError)throw profileError;
+     if(!profile)throw new Error('Email ini belum terdaftar sebagai akun NEXORA. Minta pengguna tersebut daftar/login terlebih dahulu.');
+     if(profile.status==='inactive')throw new Error('Akun tersebut sedang nonaktif.');
+     const {data:existing,error:existingError}=await supabaseClient
+       .from('company_users').select('id,company_id,user_id,status')
+       .eq('company_id',currentCompany().id).eq('user_id',profile.id).maybeSingle();
+     if(existingError)throw existingError;
+     if(existing?.status==='active')throw new Error('Email tersebut sudah menjadi member perusahaan ini.');
+
+     if(existing){
+       const {error:updateError}=await supabaseClient.from('company_users')
+         .update({role:document.getElementById('uf_role').value,status:'active'}).eq('id',existing.id);
+       if(updateError)throw updateError;
+     }else{
+       const {error:memberError}=await supabaseClient.from('company_users').insert({
+         company_id:currentCompany().id,user_id:profile.id,
+         role:document.getElementById('uf_role').value,status:'active'
+       });
+       if(memberError)throw memberError;
+     }
+
+     const cloudUser={
+       id:profile.id,authUserId:profile.id,name:profile.name||name,email:profile.email||email,
+       pin,role:document.getElementById('uf_role').value,
+       status:document.getElementById('uf_status').value==='true',
+       companyIds:[currentCompany().id],branchIds:bids,cloud:true
+     };
+     S.users=S.users||[];
+     const idx=S.users.findIndex(x=>x.authUserId===profile.id||x.id===profile.id);
+     if(idx>=0)S.users[idx]={...S.users[idx],...cloudUser};
+     else S.users.push(cloudUser);
+     save();closeModal();render();
+     toast('Akun '+email+' berhasil ditambahkan sebagai member');
+     return;
+   }catch(e){
+     return toast(e.message||'Gagal menghubungkan akun member');
+   }
+ }
+
+ const o={id:editId,name,email,pin,role:document.getElementById('uf_role').value,status:document.getElementById('uf_status').value==='true',companyIds:[currentCompany().id],branchIds:bids};
+ const old=S.users.find(x=>x.id===editId);
+ if(old)o.companyIds=old.companyIds.includes(currentCompany().id)?old.companyIds:[...old.companyIds,currentCompany().id];
+ S.users[S.users.findIndex(x=>x.id===editId)]=o;
  save();closeModal();render();toast('Pengguna disimpan');
 }
 function pos(){
