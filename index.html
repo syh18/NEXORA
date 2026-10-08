@@ -80,7 +80,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 }
 
 /* NEXORA AUTH — GrowthScope-inspired */
-#authScreen{position:fixed;inset:0;background:linear-gradient(135deg,#101828 0%,#1f2a44 55%,#635bff 130%);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999;overflow:auto}#authScreen.hidden{display:none}.auth-box{width:min(440px,100%);background:#fff;border-radius:20px;padding:30px;box-shadow:0 25px 70px rgba(0,0,0,.25)}.auth-brand{display:flex;align-items:center;gap:10px;font-size:25px;font-weight:900;color:#172033}.auth-brand-mark{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#635bff,#8179ff);color:#fff;display:grid;place-items:center;font-size:17px;font-weight:900;box-shadow:0 8px 22px rgba(99,91,255,.25)}.auth-brand span{display:block;color:#718096;font-size:12px;font-weight:500;margin-top:3px}.auth-box h2{margin:24px 0 7px;font-size:24px;color:#172033}.auth-box p{color:#718096;font-size:13px;line-height:1.6;margin:0}.auth-form{display:grid;gap:12px;margin-top:18px}.auth-field label{font-size:12px;color:#718096;display:block;margin-bottom:6px}.auth-field input{width:100%;padding:12px;border:1px solid #e7ebf2;border-radius:9px;outline:none;background:#fff;color:#172033}.auth-field input:focus{border-color:#635bff;box-shadow:0 0 0 3px rgba(99,91,255,.1)}.auth-actions{display:grid;gap:9px;margin-top:8px}.auth-btn{width:100%;padding:12px;border:0;border-radius:9px;background:linear-gradient(135deg,#635bff,#8179ff);color:#fff;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(99,91,255,.2)}.auth-link-btn{border:0;background:none;color:#635bff;font-weight:700;cursor:pointer;padding:5px;font-size:12px}.auth-msg{font-size:12px;padding:10px 12px;border-radius:8px;display:none}.auth-msg.show{display:block}.auth-msg.error{background:#fee2e2;color:#991b1b}.auth-msg.success{background:#dcfce7;color:#166534}.auth-switch{text-align:center;margin-top:15px;font-size:12px;color:#718096}.auth-switch button{border:0;background:none;color:#635bff;font-weight:700;cursor:pointer}@media(max-width:480px){#authScreen{padding:14px}.auth-box{padding:24px 20px;border-radius:18px}.auth-box h2{font-size:22px}}</style>
+#authScreen{position:fixed;inset:0;background:linear-gradient(135deg,#101828 0%,#1f2a44 55%,#635bff 130%);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999;overflow:auto}#authScreen.hidden{display:none}.auth-box{width:min(440px,100%);background:#fff;border-radius:20px;padding:30px;box-shadow:0 25px 70px rgba(0,0,0,.25)}.auth-brand{display:flex;align-items:center;gap:10px;font-size:25px;font-weight:900;color:#172033}.auth-brand-mark{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#635bff,#8179ff);color:#fff;display:grid;place-items:center;font-size:17px;font-weight:900;box-shadow:0 8px 22px rgba(99,91,255,.25)}.auth-brand span{display:block;color:#718096;font-size:12px;font-weight:500;margin-top:3px}.auth-box h2{margin:24px 0 7px;font-size:24px;color:#172033}.auth-box p{color:#718096;font-size:13px;line-height:1.6;margin:0}.auth-form{display:grid;gap:12px;margin-top:18px}.auth-field label{font-size:12px;color:#718096;display:block;margin-bottom:6px}.auth-field input{width:100%;padding:12px;border:1px solid #e7ebf2;border-radius:9px;outline:none;background:#fff;color:#172033}.auth-field input:focus{border-color:#635bff;box-shadow:0 0 0 3px rgba(99,91,255,.1)}.auth-actions{display:grid;gap:9px;margin-top:8px}.auth-btn{width:100%;padding:12px;border:0;border-radius:9px;background:linear-gradient(135deg,#635bff,#8179ff);color:#fff;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(99,91,255,.2)}.auth-link-btn{border:0;background:none;color:#635bff;font-weight:700;cursor:pointer;padding:5px;font-size:12px}.auth-msg{font-size:12px;line-height:1.5;min-height:18px;padding:6px 0;color:#b42318;display:block}.auth-msg.show{display:block}.auth-msg.error{background:#fee2e2;color:#991b1b;padding:10px 12px;border-radius:8px}.auth-msg.success{background:#dcfce7;color:#166534;padding:10px 12px;border-radius:8px}.auth-switch{text-align:center;margin-top:15px;font-size:12px;color:#718096}.auth-switch button{border:0;background:none;color:#635bff;font-weight:700;cursor:pointer}@media(max-width:480px){#authScreen{padding:14px}.auth-box{padding:24px 20px;border-radius:18px}.auth-box h2{font-size:22px}}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -243,7 +243,7 @@ async function signupSubmit(){
    if(branchError)throw branchError;
    await loadCloudUser(data.user);
    localStorage.setItem('nexora_login_email',email);
-   closeModal();render();toast('Akun dan perusahaan berhasil dibuat');
+   document.getElementById('authScreen')?.classList.add('hidden');closeModal();render();toast('Akun dan perusahaan berhasil dibuat');
  }catch(e){
    if(errorEl)errorEl.textContent='Akun dibuat, tetapi setup perusahaan gagal: '+(e.message||'Silakan login lagi.');
  }
@@ -320,7 +320,7 @@ async function loginSubmit(){
  try{
    await loadCloudUser(data.user);
    localStorage.setItem('nexora_login_email',email);
-   closeModal();render();toast('Selamat datang di NEXORA');
+   document.getElementById('authScreen')?.classList.add('hidden');closeModal();render();toast('Selamat datang di NEXORA');
  }catch(e){
    await supabaseClient.auth.signOut();
    if(errorEl)errorEl.textContent=e.message||'Akun belum siap digunakan.';
@@ -796,7 +796,7 @@ function restoreBackup(){
  const file=document.getElementById('restoreFile')?.files?.[0];if(!file)return toast('Pilih file backup terlebih dahulu');
  const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result);if(!p.data||!p.version)return toast('File backup tidak valid');Object.keys(p.data).forEach(k=>{S[k]=p.data[k]});if(!S.income)S.income=[];if(!S.expenses)S.expenses=[];if(!S.customers)S.customers=[];if(!S.suppliers)S.suppliers=[];if(!S.purchases)S.purchases=[];if(!S.accounts)S.accounts=[];if(!S.auditLogs)S.auditLogs=[];logAudit('Restore backup','Data','Data dipulihkan dari file '+file.name);save();location.reload()}catch(e){toast('Backup gagal dibaca')}};r.readAsText(file);
 }
-function render(){if(!S.session?.loggedIn){document.getElementById('app').innerHTML='';applyTheme();loginForm();return}const u=currentUser();if(!u||u.status===false){S.session={loggedIn:false,userId:null};save();return render()}shell()}
+function render(){if(!S.session?.loggedIn){document.getElementById('app').innerHTML='';applyTheme();loginForm();return}document.getElementById('authScreen')?.classList.add('hidden');const u=currentUser();if(!u||u.status===false){S.session={loggedIn:false,userId:null};save();return render()}shell()}
 bootstrapAuth();
 </script>
 </body>
